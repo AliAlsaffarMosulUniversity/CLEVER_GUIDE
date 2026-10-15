@@ -372,3 +372,22 @@ h1,h2,h3{font-weight:700;letter-spacing:0}
 .chcard.ai .ic{background:var(--ais)}
 .themebtn.plain{background:var(--surf);border-color:var(--line);color:var(--acc)}
 .top .themebtn{color:var(--gold)}
+/* جرس التنبيهات */
+.bellbtn{position:relative}
+.top .bellbtn{background:transparent;border-color:color-mix(in srgb,var(--gold) 55%,transparent);color:var(--gold)}
+.bdot{position:absolute;top:-6px;inset-inline-end:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--bad);color:#fff;font-family:var(--f-mono);font-size:.7rem;line-height:20px;text-align:center;border:2px solid var(--navy)}
+
+.top .bellbtn:has(.bdot) svg{animation:ring 1.6s ease-in-out 1}
+@keyframes ring{10%,30%{transform:rotate(14deg)}20%,40%{transform:rotate(-14deg)}50%{transform:none}}
+@media (prefers-reduced-motion:reduce){.top .bellbtn svg{animation:none!important}}
+.notifs{display:grid;gap:8px}
+.notif{display:flex;gap:12px;align-items:flex-start;text-align:start;width:100%;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:56px}
+.notif.new{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,var(--surf))}
+.notif .nic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--accs);color:var(--acc)}
+.notif .nic.ann{background:var(--ambs);color:var(--ai)}
+.notif .nic svg{width:20px;height:20px}
+.notif .ntx{flex:1;min-width:0;display:grid;gap:2px}
+.notif .ntx b{font-family:var(--f-disp);font-size:.98rem}
+.notif .ntx span{font-size:.86rem;color:var(--mute);white-space:pre-line;overflow-wrap:anywhere}
+.notif .ntx small{font-size:.74rem;color:var(--mute)}
+.top .in{gap:8px}

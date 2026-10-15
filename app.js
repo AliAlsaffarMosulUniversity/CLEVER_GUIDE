@@ -187,8 +187,54 @@
   };
 
   /* ---------- الشاشات ---------- */
+
+  /* ---------- جرس التنبيهات ---------- */
+  function notifItems() {
+    var l = S.hw.map(function (h) { return { type: 'hw', id: h.id, title: h.title, body: (h.ch ? 'الفصل ' + h.ch + ' · ' : '') + (h.due ? 'آخر موعد ' + h.due : 'واجب جديد'), ts: h.created || '' }; });
+    if (S.ann && S.ann.text) l.push({ type: 'ann', id: 'ann-' + (S.ann.ts || ''), title: 'إعلان من الأستاذ', body: S.ann.text, ts: S.ann.ts || '' });
+    return l.sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
+  }
+  function unseen() { var seen = lsGet('seenTs', ''); return notifItems().filter(function (n) { return n.ts && n.ts > seen; }).length; }
+  function bellBtn() {
+    if (!AUTH) return '';
+    var n = unseen();
+    return '<button class="iconbtn bellbtn" data-a="bell" aria-label="التنبيهات' + (n ? '، ' + n + ' جديد' : '') + '">' + I.bell + (n ? '<span class="bdot">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</button>';
+  }
+  function notifSheet() {
+    var l = notifItems(), seen = S.sheet.seen || '';
+    var perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+    return '<h3>التنبيهات</h3>' +
+      (perm === 'default' ? '<div class="tipbox" style="display:grid;gap:8px"><span>فعّل إشعارات الجهاز ليصلك تنبيه عند نزول واجب أو إعلان جديد.</span><button class="btn amb" data-a="askperm">تفعيل الإشعارات</button></div>' : perm === 'denied' ? '<p class="small mute">الإشعارات مرفوضة في إعدادات المتصفح. يمكنك السماح بها من إعدادات الموقع.</p>' : '') +
+      (l.length ? '<div class="notifs">' + l.map(function (n) {
+        return '<button class="notif' + (n.ts > seen ? ' new' : '') + '" data-a="notifgo" data-t="' + n.type + '"><span class="nic ' + n.type + '">' + (n.type === 'hw' ? I.hw : I.bell) + '</span><span class="ntx"><b>' + esc(n.title) + '</b><span>' + esc(n.body) + '</span>' + (n.ts ? '<small>' + fmtDate(n.ts) + '</small>' : '') + '</span>' + (n.ts > seen ? '<span class="pill amb">جديد</span>' : '') + '</button>';
+      }).join('') + '</div>' : '<div class="empty">لا توجد تنبيهات بعد. سيظهر هنا كل واجب أو إعلان ينشره الأستاذ.</div>') +
+      '<button class="btn ghost" data-a="closesheet">إغلاق</button>';
+  }
+  async function sysNotify() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    var last = lsGet('notifiedTs', null);
+    var items = notifItems();
+    if (last === null) { lsSet('notifiedTs', items[0] ? items[0].ts : new Date().toISOString()); return; }
+    var fresh = items.filter(function (n) { return n.ts && n.ts > last; });
+    if (!fresh.length) return;
+    lsSet('notifiedTs', fresh[0].ts);
+    for (var i = 0; i < Math.min(fresh.length, 3); i++) {
+      var n = fresh[i], opt = { body: n.body.slice(0, 140), icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: n.id, dir: 'rtl', lang: 'ar' };
+      try { var reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) await reg.showNotification((n.type === 'hw' ? 'واجب جديد: ' : '') + n.title, opt); else new Notification(n.title, opt); } catch (e) { }
+    }
+  }
+  async function pollNotifs() {
+    if (!AUTH || document.hidden) return;
+    try { S.hw = await DB.homework(); } catch (e) { }
+    try { S.ann = await DB.announce(); } catch (e) { }
+    sysNotify();
+    if (!S.sheet && ['home', 'hw', 'chapter', 'cards', 'tests', 'tools'].indexOf(S.view) >= 0) { var b = document.querySelector('.bellbtn'); if (b) b.outerHTML = bellBtn(); }
+  }
+  setInterval(pollNotifs, 120000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) pollNotifs(); });
+
   function topbar(title, withBack) {
-    return '<header class="top"><div class="in">' + (withBack ? '<button class="iconbtn" data-a="back" aria-label="رجوع">' + I.back + '</button>' : '<span class="logo">' + LOGO + '</span>') + '<h1>' + esc(title) + '</h1>' + themeBtn() +
+    return '<header class="top"><div class="in">' + (withBack ? '<button class="iconbtn" data-a="back" aria-label="رجوع">' + I.back + '</button>' : '<span class="logo">' + LOGO + '</span>') + '<h1>' + esc(title) + '</h1>' + bellBtn() + themeBtn() +
       (S.view === 'home' && isAdmin() ? '<button class="iconbtn" data-a="go" data-v="admin" aria-label="لوحة الأدمن">' + I.shield + '</button>' : '') + '</div></header>';
   }
   function navbar() {
@@ -443,6 +489,8 @@
       var mine = S.myqs.filter(function (q) { return q.topic === sh.sid && +q.ch === +sh.ch; });
       inner = '<h3>سؤال للمحاضرة القادمة</h3><span class="pill">الفصل ' + sh.ch + ' · ' + esc(sh.sid) + ' ' + esc(sh.title) + '</span><form class="form" data-form="ask"><div class="field"><label for="askt">ما الذي لم تفهمه؟</label><textarea id="askt" name="text" required maxlength="600" placeholder="اكتب سؤالك أو النقطة الغامضة"></textarea></div><p class="small mute">يصل سؤالك إلى الأستاذ مع اسمك، ليشرح النقطة في المحاضرة القادمة.</p><div class="row"><button class="btn" type="submit">إرسال</button><button class="btn ghost" type="button" data-a="closesheet">إلغاء</button></div></form>' +
         (mine.length ? '<div><b class="small">أسئلتك السابقة هنا</b>' + mine.map(function (q) { return '<div class="cm" style="margin-top:6px"><p>' + esc(q.text) + '</p><span class="pill ' + (q.status === 'done' ? 'good' : 'amb') + '">' + (q.status === 'done' ? 'شُرحت' : 'بانتظار الشرح') + '</span></div>'; }).join('') + '</div>' : '');
+    } else if (sh.type === 'notif') {
+      inner = notifSheet();
     } else if (sh.type === 'install') {
       inner = '<h3>ثبّت التطبيق على جهازك</h3><div class="card"><b>هواتف أندرويد</b><ol class="steps"><li>افتح التطبيق في متصفح كروم</li><li>اضغط زر التثبيت إن ظهر، أو القائمة ⋮ ثم تثبيت التطبيق</li></ol></div><div class="card"><b>آيفون</b><ol class="steps"><li>افتح التطبيق في متصفح سفاري</li><li>اضغط زر المشاركة ثم إضافة إلى الشاشة الرئيسية</li></ol></div><div class="card"><b>الحاسوب</b><ol class="steps"><li>افتحه في كروم أو إيدج</li><li>اضغط أيقونة التثبيت في شريط العنوان</li></ol></div>' + (window.__bip ? '<button class="btn wide" data-a="doinstall">' + I.install + 'تثبيت الآن</button>' : '') + '<button class="btn ghost" data-a="closesheet">إغلاق</button>';
     }
@@ -480,6 +528,9 @@
     switch (a) {
       case 'go': go(d.v); if (d.v === 'admin') loadAdmin(); if (d.v === 'hw') loadMine(); break;
       case 'back': back(); break;
+      case 'bell': S.sheet = { type: 'notif', seen: lsGet('seenTs', '') }; var top = notifItems()[0]; lsSet('seenTs', top && top.ts ? top.ts : new Date().toISOString()); render(); break;
+      case 'notifgo': S.sheet = null; if (d.t === 'hw') { go('hw'); loadMine(); } else { go('home'); } break;
+      case 'askperm': try { Notification.requestPermission().then(function (r) { if (r === 'granted') { lsSet('notifiedTs', (notifItems()[0] || {}).ts || new Date().toISOString()); toast('تم تفعيل الإشعارات'); } render(); }); } catch (e) { } break;
       case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#0C2347' : '#12305E'); render(); break;
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
@@ -536,7 +587,7 @@
     try {
       if (k === 'ask') { if (!fd.text) return; var sh = S.sheet; var c = { ch: sh.ch, topic: sh.sid, topicTitle: sh.title, text: fd.text }; await DB.ask(c); S.myqs.push(Object.assign({ status: 'open', ts: new Date().toISOString() }, c)); S.sheet = null; render(); toast('وصل سؤالك إلى الأستاذ'); }
       else if (k === 'hw') { await DB.addHw(fd); toast('نُشر الواجب لجميع الطلبة'); S.hw = await DB.homework(); render(); }
-      else if (k === 'ann') { await DB.setAnnounce(fd.text); S.ann = { text: fd.text }; toast('نُشر الإعلان'); render(); }
+      else if (k === 'ann') { await DB.setAnnounce(fd.text); S.ann = { text: fd.text, ts: new Date().toISOString() }; toast('نُشر الإعلان'); render(); }
       else if (k === 'profile') { if (!fd.name) return; await DB.saveProfile(fd); S.profile = fd; S.view = 'home'; refreshData(); render(); }
     } catch (e) { toast('تعذر الإرسال، تحقق من الاتصال'); if (btn) btn.disabled = false; }
   });
@@ -573,8 +624,8 @@
   }
   async function refreshData() {
     DB.visit().catch(function () { }).then(function () { return DB.stats(); }).then(function (s) { S.stats = s; if (S.view === 'home' || S.view === 'admin') render(); }).catch(function () { });
-    DB.homework().then(function (l) { S.hw = l; render(); }).catch(function () { });
-    DB.announce().then(function (a) { S.ann = a; if (S.view === 'home') render(); }).catch(function () { });
+    DB.homework().then(function (l) { S.hw = l; render(); sysNotify(); }).catch(function () { });
+    DB.announce().then(function (a) { S.ann = a; if (!S.sheet) render(); sysNotify(); }).catch(function () { });
     loadMine();
   }
   function loadMine() { if (!AUTH) return; DB.myQs().then(function (l) { S.myqs = l; if (S.view === 'hw') render(); }).catch(function () { }); }
