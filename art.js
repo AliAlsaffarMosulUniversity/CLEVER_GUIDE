@@ -194,7 +194,7 @@ var ILL = {
   },
   tradml: function () {
     var row = function (y, a, b, c, hl) { return '<rect x="150" y="' + y + '" width="66" height="26" rx="6" class="b o"/><text x="183" y="' + (y + 17) + '" font-size="9" text-anchor="middle" class="tx">' + a + '</text><path d="M146 ' + (y + 13) + 'h-14" class="o"/><rect x="62" y="' + (y - 2) + '" width="66" height="30" rx="6" class="' + hl + '"/><text x="95" y="' + (y + 17) + '" font-size="9" text-anchor="middle" class="tk">' + b + '</text><path d="M58 ' + (y + 13) + 'h-14" class="o"/><rect x="2" y="' + y + '" width="40" height="26" rx="6" class="b o"/><text x="22" y="' + (y + 17) + '" font-size="9" text-anchor="middle" class="tx">' + c + '</text>'; };
-    return S('<text x="216" y="12" font-size="9" text-anchor="end" class="tx">البرنامج التقليدي</text>' + row(18, 'بيانات + قواعد', 'برنامج', 'نتائج', 'l') +
+    return S('<text x="216" y="12" font-size="9" text-anchor="end" class="tx">البرنامج التقليدي</text>' + row(18, 'بيانات + قواعد', 'برنامج', 'نتائج', 'm') +
       '<text x="216" y="66" font-size="9" text-anchor="end" class="tx">تعلم الآلة</text>' + row(72, 'بيانات + نتائج', 'تعلم', 'قواعد', 'a'), '0 0 220 104');
   },
   agentcycle: function () {

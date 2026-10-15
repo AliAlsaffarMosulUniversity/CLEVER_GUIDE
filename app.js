@@ -155,6 +155,28 @@
   function devCard(k) { var d = DEV[k]; if (!d) return ''; return '<div class="dev"><div class="pic">' + d.svg + '</div><b>' + esc(d.ar) + '</b><span class="ltr">' + esc(d.en) + '</span><p>' + esc(d.fn) + '</p></div>'; }
   function tbl(t) { return '<div class="tblwrap"><table><thead><tr>' + t.h.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + t.r.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>'; }
 
+
+  /* أيقونات خطية بسيطة للفصول والأدوات */
+  function li(d) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; }
+  var LI = {
+    switch: li('<circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="19" r="2.2"/><circle cx="19" cy="19" r="2.2"/><path d="M12 7.2v4.3M12 11.5l-5.6 5.7M12 11.5l5.6 5.7M7.2 19h9.6"/>'),
+    firewall: li('<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8-7.5 9.5-4.3-1.5-7.5-4.9-7.5-9.5V6z"/><rect x="9" y="10.5" width="6" height="5" rx="1"/><path d="M10.2 10.5V9a1.8 1.8 0 0 1 3.6 0v1.5"/>'),
+    card: li('<rect x="3" y="6" width="18" height="12.5" rx="2"/><path d="M3 10h18M7 15h4"/>'),
+    mobo: li('<path d="M14.5 6.5a4 4 0 0 0-5.3 5.2L4 17l3 3 5.3-5.2a4 4 0 0 0 5.2-5.3l-2.4 2.4-2.6-.4-.4-2.6z"/>'),
+    brain: li('<path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>'),
+    phone: li('<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 18h2"/>'),
+    doc: li('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 15.5h5"/>'),
+    globe: li('<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c-2.5 2.6-2.5 14.4 0 17M12 3.5c2.5 2.6 2.5 14.4 0 17"/>'),
+    shield: li('<path d="M12 4v16M7 20h10M5 7h14M5 7l-2.5 6h5zM19 7l-2.5 6h5z"/><path d="M2.5 13a2.5 2 0 0 0 5 0M16.5 13a2.5 2 0 0 0 5 0"/>'),
+    agent: li('<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5M9.5 13h.01M14.5 13h.01M9.5 16.2h5"/><circle cx="12" cy="4" r="1"/>'),
+    devices: li('<rect x="3" y="5" width="13" height="9" rx="1.5"/><path d="M7 18h5M9.5 14v4"/><rect x="17" y="9" width="4.5" height="10" rx="1"/>'),
+    phish: li('<path d="M4 6h16v10H9l-5 4z"/><path d="M12 9v3M12 14.2h.01"/>'),
+    clinic: li('<path d="M14.5 6.5a4 4 0 0 0-5.3 5.2L4 17l3 3 5.3-5.2a4 4 0 0 0 5.2-5.3l-2.4 2.4-2.6-.4-.4-2.6z"/>'),
+    order: li('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 5.5l1 .5v3M4 11.5h2l-2 3h2M4 17h2l-1 1 1 1H4"/>'),
+    prompt: li('<path d="M4 5h16v11H8l-4 4z"/><path d="M8 9.5l2 1.5-2 1.5M12 12.5h4"/>'),
+    pass: li('<rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14v2.5"/>')
+  };
+
   /* ---------- الشاشات ---------- */
   function topbar(title, withBack) {
     return '<header class="top"><div class="in">' + (withBack ? '<button class="iconbtn" data-a="back" aria-label="رجوع">' + I.back + '</button>' : '<span class="logo">' + LOGO + '</span>') + '<h1>' + esc(title) + '</h1>' +
@@ -169,7 +191,7 @@
   function chProgress(c) { var n = c.sec.length; var r = (P.read[c.n] || []).length; return Math.round(Math.min(r, n) / n * 100); }
   function chCard(c) {
     var b = P.best[c.n];
-    return '<button class="chcard ' + c.unit + '" data-a="open" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + CHICON[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + esc(c.week) + ' · ' + c.sec.length + ' موضوعات' + (b != null ? ' · أفضل نتيجة ' + b + '%' : '') + '</span><span class="bar"><i style="width:' + chProgress(c) + '%"></i></span></span></button>';
+    return '<button class="chcard ' + c.unit + '" data-a="open" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + esc(c.week) + ' · ' + c.sec.length + ' موضوعات' + (b != null ? ' · أفضل نتيجة ' + b + '%' : '') + '</span><span class="bar"><i style="width:' + chProgress(c) + '%"></i></span></span></button>';
   }
   function footer() {
     return '<div class="foot"><span>تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span><span>قسم إدارة الأعمال · كلية الإدارة والاقتصاد · جامعة الموصل</span><span>تصميم وبرمجة</span><b>الأستاذ علي الصفار</b>' +
@@ -208,7 +230,7 @@
     } else {
       body = '<div class="qa" style="margin-top:12px">' + c.qa.map(function (q) { return '<details><summary>' + esc(q[0]) + '</summary><p>' + esc(q[1]) + '</p></details>'; }).join('') + '</div><p class="small mute" style="margin-top:10px">حاول الإجابة بنفسك أولاً، ثم افتح السؤال لترى الإجابة النموذجية.</p>';
     }
-    return topbar('الفصل ' + c.n, true) + '<main class="wrap"><div class="chhead ' + c.unit + '"><span class="ic">' + CHICON[c.icon] + '</span><div><span class="pill">' + esc(c.week) + '</span><h2>' + esc(c.title) + '</h2><span class="mute small">' + esc(c.sub) + '</span></div></div>' +
+    return topbar('الفصل ' + c.n, true) + '<main class="wrap"><div class="chhead ' + c.unit + '"><span class="ic">' + LI[c.icon] + '</span><div><span class="pill">' + esc(c.week) + '</span><h2>' + esc(c.title) + '</h2><span class="mute small">' + esc(c.sub) + '</span></div></div>' +
       '<div class="tabs" role="toolbar">' + tabs.map(function (t) { return '<button class="tab" data-a="tab" data-t="' + t[0] + '" aria-pressed="' + (S.tab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' + body + '</main>';
   }
   function secHTML(c, s) {
@@ -256,7 +278,7 @@
   function vTests() {
     return topbar('الاختبارات') + '<main class="wrap"><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem">الامتحان الشامل</b><p class="small" style="opacity:.85">20 سؤال اختيار من متعدد و 10 عبارات صح أو خطأ من الفصول العشرة، على غرار الامتحان النهائي.</p>' + (P.best[0] != null ? '<p class="small">أفضل نتيجة: <b>' + P.best[0] + '%</b></p>' : '') + '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button></div></section>' +
       '<section class="block"><div class="row"><button class="btn ghost wide" data-a="quick">اختبار سريع: 10 أسئلة عشوائية</button></div></section>' +
-      '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = P.best[c.n]; return '<button class="chcard ' + c.unit + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + CHICON[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
+      '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = P.best[c.n]; return '<button class="chcard ' + c.unit + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
   }
 
   /* البطاقات */
@@ -281,7 +303,7 @@
     ['pass', 'فاحص كلمة المرور', 'هل كلمتك قوية؟', 'lock']
   ];
   function vTools() {
-    return topbar('أدوات التدريب') + '<main class="wrap"><section class="block"><div class="tools">' + TOOLS.map(function (t) { return '<button class="tool" data-a="tool" data-t="' + t[0] + '"><span class="ti">' + DEV[t[3]].svg + '</span><b>' + t[1] + '</b><span>' + t[2] + '</span></button>'; }).join('') + '</div></section></main>';
+    return topbar('أدوات التدريب') + '<main class="wrap"><section class="block"><div class="tools">' + TOOLS.map(function (t) { return '<button class="tool" data-a="tool" data-t="' + t[0] + '"><span class="ti">' + LI[t[0]] + '</span><b>' + t[1] + '</b><span>' + t[2] + '</span></button>'; }).join('') + '</div></section></main>';
   }
   function vTool() {
     var t = S.tool, T = S.ts || {};
@@ -397,7 +419,7 @@
       b = '<div class="form"><div class="field"><label for="gemail">البريد الجامعي</label><input id="gemail" type="email" dir="ltr" inputmode="email" autocomplete="email" value="' + esc(G.email || '') + '" placeholder="name@uomosul.edu.iq"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button></div><p class="small mute">لا كلمة مرور. يصلك رابط على بريدك الجامعي تضغطه فتدخل.</p>';
     }
     return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><div style="display:grid;gap:16px;max-width:420px;margin:0 auto"><div class="row"><span class="logo" style="width:56px;height:56px;border-radius:16px">' + LOGO + '</span><div><h1 style="font-size:1.5rem">حقيبة الحاسوب</h1><span class="mute small">تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span></div></div>' +
-      '<div class="ill" style="background:var(--surf)">' + ILL.office() + '</div>' +
+      '<ul class="pts">' + ['ملخصات الفصول العشرة مع الرسوم', 'اختبارات وبطاقات مصطلحات', 'الواجبات وأسئلتك للمحاضرة'].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
       '<div class="card" style="display:grid;gap:12px"><b>الدخول للطلبة بالبريد الجامعي فقط</b>' + (G.err ? '<div class="fb no">' + esc(G.err) + '</div>' : '') + b + '</div>' + footer() + '</div></main>';
   }
   function vProfile() {
