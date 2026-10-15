@@ -391,3 +391,16 @@ h1,h2,h3{font-weight:700;letter-spacing:0}
 .notif .ntx span{font-size:.86rem;color:var(--mute);white-space:pre-line;overflow-wrap:anywhere}
 .notif .ntx small{font-size:.74rem;color:var(--mute)}
 .top .in{gap:8px}
+/* شعار الكلية */
+.logo{background:#fff;border-radius:50%;box-shadow:0 0 0 2px var(--gold);overflow:hidden}
+.logo img{width:100%;height:100%;display:block}
+.hero{isolation:isolate}
+.hero>*:not(.wmark){position:relative;z-index:1}
+.hero .wmark{position:absolute;z-index:0;width:230px;height:230px;left:-60px;top:-50px;opacity:.16;pointer-events:none;transform:rotate(-8deg)}
+.crest{display:grid;justify-items:center;text-align:center;gap:6px;padding-block:6px 4px}
+.crestimg{width:148px;height:148px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 3px var(--gold),0 0 0 9px color-mix(in srgb,var(--gold) 18%,transparent),0 14px 34px -12px color-mix(in srgb,var(--navy) 70%,transparent)}
+.crestimg img{width:132px;height:132px;border-radius:50%;display:block}
+.crest h1{font-size:1.7rem;margin-top:10px}
+.crestsub{font-size:.8rem;color:var(--ai);font-weight:600}
+.footlogo{width:64px;height:64px;border-radius:50%;margin:0 auto 6px;background:#fff;box-shadow:0 0 0 2px var(--gold)}
+@media (prefers-reduced-motion:no-preference){.crestimg{animation:crestin .7s ease-out both}@keyframes crestin{from{transform:scale(.92);opacity:.4}to{transform:none;opacity:1}}}

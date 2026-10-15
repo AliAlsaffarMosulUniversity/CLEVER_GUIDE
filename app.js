@@ -143,7 +143,7 @@
     bulb: ic('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>'),
     install: ic('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')
   };
-  var LOGO = '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="9" width="26" height="18" rx="3" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M15 32h10M20 27v5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="14" cy="18" r="2" fill="#F2AE45"/><circle cx="26" cy="18" r="2" fill="#F2AE45"/><path d="M16 18h8" stroke="#F2AE45" stroke-width="2"/></svg>';
+  var LOGO = '<img src="icons/college-logo-160.png" alt="شعار كلية الإدارة والاقتصاد" width="40" height="40">';
 
   /* ---------- مخططات HTML ---------- */
   var ILH = {
@@ -249,7 +249,7 @@
     return '<button class="chcard ' + c.unit + '" data-a="open" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + esc(c.week) + ' · ' + c.sec.length + ' موضوعات' + (b != null ? ' · أفضل نتيجة ' + b + '%' : '') + '</span><span class="bar"><i style="width:' + chProgress(c) + '%"></i></span></span></button>';
   }
   function footer() {
-    return '<div class="foot"><span>تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span><span>قسم إدارة الأعمال · كلية الإدارة والاقتصاد · جامعة الموصل</span><span>تصميم وبرمجة</span><b>الأستاذ علي الصفار</b>' +
+    return '<div class="foot"><img class="footlogo" src="icons/college-logo-160.png" alt="شعار كلية الإدارة والاقتصاد" width="64" height="64"><span>تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span><span>قسم إدارة الأعمال · كلية الإدارة والاقتصاد · جامعة الموصل</span><span>تصميم وبرمجة</span><b>الأستاذ علي الصفار</b>' +
       (AUTH ? '<span class="ltr" style="text-align:center">' + esc(AUTH.email) + '</span><div class="row" style="justify-content:center"><button class="linkbtn" data-a="install">طريقة تثبيت التطبيق</button><button class="linkbtn" data-a="logout">تسجيل الخروج</button></div>' : '') + '</div>';
   }
 
@@ -262,7 +262,7 @@
     return topbar('حقيبة الحاسوب') + '<main class="wrap">' +
       '<section class="hero"><span class="eyebrow">تطبيقات إدارية باستخدام الحاسوب</span><h2>' + (name ? 'أهلاً ' + esc(name) : 'أهلاً بك') + '</h2><p>عشرة فصول ملخصة، واختبارات، وبطاقات مصطلحات، وأدوات تدريب.</p>' +
       '<div class="stats"><div class="stat"><b>' + fmtN(st.users) + '</b><span>مستخدمو التطبيق</span></div><div class="stat"><b>' + fmtN(st.visits) + '</b><span>مرات الفتح</span></div><div class="stat"><b>' + fmtN(Object.keys(P.known).length) + '</b><span>مصطلحاً حفظته</span></div></div>' +
-      '<svg class="trace" viewBox="0 0 170 120" aria-hidden="true"><path d="M170 20H110l-20 20H40M170 60h-40l-20 20H20M170 100H90"/><circle cx="40" cy="40" r="5"/><circle cx="20" cy="80" r="5"/><circle cx="90" cy="100" r="5"/></svg></section>' +
+      '<img class="wmark" src="icons/college-mark-gold.png" alt="" aria-hidden="true"></section>' +
       (S.ann && S.ann.text ? '<div class="announce" role="note">' + I.bell + '<div><b>إعلان من الأستاذ</b><p>' + esc(S.ann.text) + '</p></div></div>' : '') +
       (next ? '<section class="block"><h3>أقرب واجب<small><button class="linkbtn" data-a="go" data-v="hw">كل الواجبات</button></small></h3>' + hwCard(next) + '</section>' : '') +
       '<section class="block"><div class="card tip"><span class="bulb">' + I.bulb + '</span><p><b>معلومة اليوم:</b> ' + esc(tip) + '</p></div></section>' +
@@ -473,7 +473,7 @@
     } else {
       b = '<div class="form"><div class="field"><label for="gemail">البريد الجامعي</label><input id="gemail" type="email" dir="ltr" inputmode="email" autocomplete="email" value="' + esc(G.email || '') + '" placeholder="name@uomosul.edu.iq"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button></div><p class="small mute">لا كلمة مرور. يصلك رابط على بريدك الجامعي تضغطه فتدخل.</p>';
     }
-    return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><div style="display:grid;gap:16px;max-width:420px;margin:0 auto"><div style="display:flex;justify-content:flex-end">' + themeBtn(' plain') + '</div><div class="row"><span class="logo" style="width:56px;height:56px;border-radius:16px">' + LOGO + '</span><div><h1 style="font-size:1.5rem">حقيبة الحاسوب</h1><span class="mute small">تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span></div></div>' +
+    return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><div style="display:grid;gap:16px;max-width:420px;margin:0 auto"><div style="display:flex;justify-content:flex-end">' + themeBtn(' plain') + '</div><div class="crest"><span class="crestimg"><img src="icons/college-logo.png" alt="شعار كلية الإدارة والاقتصاد، جامعة الموصل" width="132" height="132"></span><h1>حقيبة الحاسوب</h1><span class="mute small">تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span><span class="crestsub">كلية الإدارة والاقتصاد · جامعة الموصل</span></div>' +
       '<ul class="pts">' + ['ملخصات الفصول العشرة مع الرسوم', 'اختبارات وبطاقات مصطلحات', 'الواجبات وأسئلتك للمحاضرة'].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
       '<div class="card" style="display:grid;gap:12px"><b>الدخول للطلبة بالبريد الجامعي فقط</b>' + (G.err ? '<div class="fb no">' + esc(G.err) + '</div>' : '') + b + '</div>' + footer() + '</div></main>';
   }
