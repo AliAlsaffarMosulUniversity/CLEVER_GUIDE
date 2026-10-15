@@ -1,7 +1,5 @@
-/* إعداد قاعدة البيانات (Firebase)
-   ضع هنا قيمتي apiKey و projectId من إعدادات مشروعك في Firebase.
-   ما دامتا فارغتين يعمل التطبيق في وضع المعاينة على هذا الجهاز فقط. */
+/* إعداد قاعدة البيانات (Firebase) — مشروع clever-guide */
 window.FB_CONFIG = {
-  apiKey: "",
-  projectId: ""
+  apiKey: "AIzaSyAMz8c1eUz3WWGNcu1zjJi9_7ZvxuyndUY",
+  projectId: "clever-guide-77bf0"
 };
