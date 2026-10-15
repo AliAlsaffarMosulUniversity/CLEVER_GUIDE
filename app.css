@@ -370,3 +370,5 @@ h1,h2,h3{font-weight:700;letter-spacing:0}
 .tool .ti svg{width:26px;height:26px}
 .chcard .ic{background:var(--accs)}
 .chcard.ai .ic{background:var(--ais)}
+.themebtn.plain{background:var(--surf);border-color:var(--line);color:var(--acc)}
+.top .themebtn{color:var(--gold)}

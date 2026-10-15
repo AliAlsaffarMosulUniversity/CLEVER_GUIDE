@@ -22,6 +22,15 @@
   var toastT;
   function toast(m) { var t = $('#toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); } t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 2600); }
 
+  /* الوضع الليلي والنهاري */
+  function curTheme() { var t = document.documentElement.getAttribute('data-theme'); if (t) return t; return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+  (function () { var t = lsGet('theme', null); if (t) document.documentElement.setAttribute('data-theme', t); })();
+  function themeBtn(extra) {
+    var dark = curTheme() === 'dark';
+    var sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></svg>';
+    var moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+    return '<button class="iconbtn themebtn' + (extra || '') + '" data-a="theme" aria-label="' + (dark ? 'الوضع النهاري' : 'الوضع الليلي') + '" title="' + (dark ? 'الوضع النهاري' : 'الوضع الليلي') + '">' + (dark ? sun : moon) + '</button>';
+  }
   var P = lsGet('prog', null) || { read: {}, best: {}, known: {}, hwDone: {} };
   function saveP() { lsSet('prog', P); }
 
@@ -179,7 +188,7 @@
 
   /* ---------- الشاشات ---------- */
   function topbar(title, withBack) {
-    return '<header class="top"><div class="in">' + (withBack ? '<button class="iconbtn" data-a="back" aria-label="رجوع">' + I.back + '</button>' : '<span class="logo">' + LOGO + '</span>') + '<h1>' + esc(title) + '</h1>' +
+    return '<header class="top"><div class="in">' + (withBack ? '<button class="iconbtn" data-a="back" aria-label="رجوع">' + I.back + '</button>' : '<span class="logo">' + LOGO + '</span>') + '<h1>' + esc(title) + '</h1>' + themeBtn() +
       (S.view === 'home' && isAdmin() ? '<button class="iconbtn" data-a="go" data-v="admin" aria-label="لوحة الأدمن">' + I.shield + '</button>' : '') + '</div></header>';
   }
   function navbar() {
@@ -418,7 +427,7 @@
     } else {
       b = '<div class="form"><div class="field"><label for="gemail">البريد الجامعي</label><input id="gemail" type="email" dir="ltr" inputmode="email" autocomplete="email" value="' + esc(G.email || '') + '" placeholder="name@uomosul.edu.iq"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button></div><p class="small mute">لا كلمة مرور. يصلك رابط على بريدك الجامعي تضغطه فتدخل.</p>';
     }
-    return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><div style="display:grid;gap:16px;max-width:420px;margin:0 auto"><div class="row"><span class="logo" style="width:56px;height:56px;border-radius:16px">' + LOGO + '</span><div><h1 style="font-size:1.5rem">حقيبة الحاسوب</h1><span class="mute small">تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span></div></div>' +
+    return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><div style="display:grid;gap:16px;max-width:420px;margin:0 auto"><div style="display:flex;justify-content:flex-end">' + themeBtn(' plain') + '</div><div class="row"><span class="logo" style="width:56px;height:56px;border-radius:16px">' + LOGO + '</span><div><h1 style="font-size:1.5rem">حقيبة الحاسوب</h1><span class="mute small">تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span></div></div>' +
       '<ul class="pts">' + ['ملخصات الفصول العشرة مع الرسوم', 'اختبارات وبطاقات مصطلحات', 'الواجبات وأسئلتك للمحاضرة'].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
       '<div class="card" style="display:grid;gap:12px"><b>الدخول للطلبة بالبريد الجامعي فقط</b>' + (G.err ? '<div class="fb no">' + esc(G.err) + '</div>' : '') + b + '</div>' + footer() + '</div></main>';
   }
@@ -471,6 +480,7 @@
     switch (a) {
       case 'go': go(d.v); if (d.v === 'admin') loadAdmin(); if (d.v === 'hw') loadMine(); break;
       case 'back': back(); break;
+      case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#0C2347' : '#12305E'); render(); break;
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
       case 'startq': var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;
