@@ -371,7 +371,7 @@
     if (s.check) o += '<ul class="check">' + s.check.map(function (p, i) { return '<li><label><input type="checkbox" id="ck' + s.id + '-' + i + '">' + esc(p) + '</label></li>'; }).join('') + '</ul>';
     if (s.tip) o += '<div class="tipbox">' + esc(s.tip) + '</div>';
     if (s.key) o += '<div class="key">' + esc(s.key) + '</div>';
-    return o + '</div><div class="ask"><button class="askbtn" data-a="ask" data-ch="' + c.n + '" data-sid="' + s.id + '">' + I.ask + 'لم أفهم هذه النقطة، اشرحها في المحاضرة</button></div></article>';
+    return o + '</div><div class="ask"><button class="askbtn" data-a="ask" data-ch="' + c.n + '" data-sid="' + s.id + '">' + I.ask + 'لديك استفسار عن هذه الفقرة؟ اكتبه للأستاذ</button></div></article>';
   }
 
   /* الاختبارات */
@@ -602,7 +602,7 @@
     var inner = '';
     if (sh.type === 'ask') {
       var mine = S.myqs.filter(function (q) { return q.topic === sh.sid && +q.ch === +sh.ch; });
-      inner = '<h3>سؤال للمحاضرة القادمة</h3><span class="pill">الفصل ' + sh.ch + ' · ' + esc(sh.sid) + ' ' + esc(sh.title) + '</span><form class="form" data-form="ask"><div class="field"><label for="askt">ما الذي لم تفهمه؟</label><textarea id="askt" name="text" required maxlength="600" placeholder="اكتب سؤالك أو النقطة الغامضة"></textarea></div><p class="small mute">يصل سؤالك إلى الأستاذ مع اسمك، ليشرح النقطة في المحاضرة القادمة.</p><div class="row"><button class="btn" type="submit">إرسال</button><button class="btn ghost" type="button" data-a="closesheet">إلغاء</button></div></form>' +
+      inner = '<h3>استفسار عن هذه الفقرة</h3><span class="pill">الفصل ' + sh.ch + ' · ' + esc(sh.sid) + ' ' + esc(sh.title) + '</span><form class="form" data-form="ask"><div class="field"><label for="askt">اكتب استفسارك</label><textarea id="askt" name="text" required maxlength="600" placeholder="مثلاً: ما الفرق بين…؟ أو: لم أفهم كيف…"></textarea></div><p class="small mute">يصل استفسارك إلى الأستاذ مع اسمك، ويجيب عنه في المحاضرة القادمة.</p><div class="row"><button class="btn" type="submit">إرسال</button><button class="btn ghost" type="button" data-a="closesheet">إلغاء</button></div></form>' +
         (mine.length ? '<div><b class="small">أسئلتك السابقة هنا</b>' + mine.map(function (q) { return '<div class="cm" style="margin-top:6px"><p>' + esc(q.text) + '</p><span class="pill ' + (q.status === 'done' ? 'good' : 'amb') + '">' + (q.status === 'done' ? 'شُرحت' : 'بانتظار الشرح') + '</span></div>'; }).join('') + '</div>' : '');
     } else if (sh.type === 'rate') {
       inner = '<h3>رأيك مهم لأغراض الجودة والتحسين</h3><div class="tipbox"><b>هويتك لا تُحفظ.</b> لا يُسجَّل اسمك ولا بريدك مع رأيك، فاكتب رأيك بصراحة.</div><p class="small">ما تقييمك لتطبيق حقيبة الحاسوب؟ يظهر هذا السؤال مرة واحدة فقط.</p><form class="form" data-form="rate"><div class="rateopts">' + RATES.map(function (r) { return '<label class="rateopt"><input type="radio" name="r" value="' + r[0] + '" required><span>' + r[1] + '</span></label>'; }).join('') + '</div><div class="field"><label for="rnote">ملاحظة أو اقتراح (اختياري)</label><textarea id="rnote" name="note" maxlength="500" placeholder="ما الذي تريد أن نحسّنه؟"></textarea></div><div class="row"><button class="btn" type="submit">إرسال الرأي</button><button class="btn ghost" type="button" data-a="closesheet">ليس الآن</button></div></form>';
