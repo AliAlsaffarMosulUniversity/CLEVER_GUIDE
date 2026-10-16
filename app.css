@@ -1,25 +1,25 @@
 /* حقيبة الحاسوب — لوحة دوائر: أرضية نقطية، أزرق مخضر للشبكات، كهرماني للتنبيه */
-/* هوية جامعة الموصل: أزرق ليلي وذهبي، عناوين نسخية أكاديمية فوق متن عربي حديث */
+/* هوية مارونية: ماروني عميق على أبيض نقي، بلمسات وردية فاتحة */
 :root{
-  --bg:#F3F5F9; --surf:#FFFFFF; --surf2:#E8EDF5; --line:#CDD6E4; --ink:#0E1B33; --mute:#4B5873;
-  --acc:#173A73; --accs:#E1E9F6; --onacc:#FFFFFF; --amb:#C99A2E; --ambs:#F7EDD3;
-  --ai:#8A5A00; --ais:#F6ECD6; --good:#1F7A3E; --goods:#DDF1E3; --bad:#B3321F; --bads:#F8E0DA;
-  --tk:#1A1405; --navy:#12305E; --navy2:#0C2347; --gold:#D4AF4F; --onnavy:#FFFFFF;
+  --bg:#FBF7F8; --surf:#FFFFFF; --surf2:#F6ECEE; --line:#EAD6DA; --ink:#2A1015; --mute:#6B4C52;
+  --acc:#7A1E2C; --accs:#F7E7EA; --onacc:#FFFFFF; --amb:#C25B6E; --ambs:#FBEEF0;
+  --ai:#9E2F45; --ais:#F9E8EC; --good:#1F7A3E; --goods:#DDF1E3; --bad:#B3321F; --bads:#F8E0DA;
+  --tk:#2A1015; --navy:#6E1423; --navy2:#520E1A; --gold:#F1D3D9; --onnavy:#FFFFFF;
   --f-disp:"Cairo","IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
   --f-body:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
   --f-mono:"JetBrains Mono",Consolas,"Courier New",monospace;
   --r:14px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#08142A; --surf:#0F2040; --surf2:#162B52; --line:#253C66; --ink:#E9EEF7; --mute:#A3B1CC;
-  --acc:#8FB4FF; --accs:#15305C; --onacc:#071226; --amb:#E2BE5C; --ambs:#3A2F12;
-  --ai:#E8C068; --ais:#33290F; --good:#5BCB82; --goods:#14301F; --bad:#FF8A73; --bads:#3A1C16;
-  --navy:#0C2347; --navy2:#071733; --gold:#E2BE5C; color-scheme:dark}}
+  --bg:#17080C; --surf:#231015; --surf2:#30161D; --line:#4A2530; --ink:#F7EDEF; --mute:#CDB1B7;
+  --acc:#EE9AA8; --accs:#3A1820; --onacc:#2A0B11; --amb:#E58595; --ambs:#3A1820;
+  --ai:#F3B4BF; --ais:#38171F; --good:#5BCB82; --goods:#14301F; --bad:#FF8A73; --bads:#3A1C16;
+  --tk:#2A0B11; --navy:#5C1020; --navy2:#3D0914; --gold:#F1D3D9; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#08142A; --surf:#0F2040; --surf2:#162B52; --line:#253C66; --ink:#E9EEF7; --mute:#A3B1CC;
-  --acc:#8FB4FF; --accs:#15305C; --onacc:#071226; --amb:#E2BE5C; --ambs:#3A2F12;
-  --ai:#E8C068; --ais:#33290F; --good:#5BCB82; --goods:#14301F; --bad:#FF8A73; --bads:#3A1C16;
-  --navy:#0C2347; --navy2:#071733; --gold:#E2BE5C; color-scheme:dark}
+  --bg:#17080C; --surf:#231015; --surf2:#30161D; --line:#4A2530; --ink:#F7EDEF; --mute:#CDB1B7;
+  --acc:#EE9AA8; --accs:#3A1820; --onacc:#2A0B11; --amb:#E58595; --ambs:#3A1820;
+  --ai:#F3B4BF; --ais:#38171F; --good:#5BCB82; --goods:#14301F; --bad:#FF8A73; --bads:#3A1C16;
+  --tk:#2A0B11; --navy:#5C1020; --navy2:#3D0914; --gold:#F1D3D9; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -404,3 +404,20 @@ h1,h2,h3{font-weight:700;letter-spacing:0}
 .crestsub{font-size:.8rem;color:var(--ai);font-weight:600}
 .footlogo{width:64px;height:64px;border-radius:50%;margin:0 auto 6px;background:#fff;box-shadow:0 0 0 2px var(--gold)}
 @media (prefers-reduced-motion:no-preference){.crestimg{animation:crestin .7s ease-out both}@keyframes crestin{from{transform:scale(.92);opacity:.4}to{transform:none;opacity:1}}}
+
+/* ماروني وأبيض: لمسات على الخلفيات البيضاء */
+.block>h3::before{background:var(--acc)}
+.unit::after{background:linear-gradient(to left,var(--acc),transparent)}
+.chcard:hover{border-color:var(--acc)}
+.chhead .ic{border-color:var(--acc)}
+.nav{border-top:2px solid var(--acc)}
+.nav button[aria-current="page"]::before{background:var(--acc)}
+.sec.ai{border-top-color:var(--amb)}
+.notif.new{border-color:var(--acc);background:var(--accs)}
+.chcard.ai .ic .num{background:var(--surf);color:var(--acc);border-color:var(--acc)}
+.chcard.ai .bar i,.qbar i{background:var(--amb)}
+.crestimg{box-shadow:0 0 0 3px var(--acc),0 0 0 9px color-mix(in srgb,var(--acc) 14%,transparent),0 14px 34px -12px color-mix(in srgb,var(--navy) 60%,transparent)}
+.crestsub{color:var(--acc)}
+.footlogo,.logo{box-shadow:0 0 0 2px var(--gold)}
+.btn.amb{background:var(--surf);color:var(--acc);box-shadow:inset 0 0 0 2px var(--acc)}
+.hero .eyebrow{color:var(--gold)}

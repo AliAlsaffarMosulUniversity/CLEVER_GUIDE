@@ -283,7 +283,7 @@
     return topbar('حقيبة الحاسوب') + '<main class="wrap">' +
       '<section class="hero"><span class="eyebrow">تطبيقات إدارية باستخدام الحاسوب</span><h2>' + (name ? 'أهلاً ' + esc(name) : 'أهلاً بك') + '</h2><p>عشرة فصول ملخصة، واختبارات، وبطاقات مصطلحات، وأدوات تدريب.</p>' +
       '<div class="stats"><div class="stat"><b>' + fmtN(st.users) + '</b><span>مستخدمو التطبيق</span></div><div class="stat"><b>' + fmtN(st.visits) + '</b><span>مرات الفتح</span></div><div class="stat"><b>' + fmtN(Object.keys(P.known).length) + '</b><span>مصطلحاً حفظته</span></div></div>' +
-      '<img class="wmark" src="icons/college-mark-gold.png" alt="" aria-hidden="true"></section>' +
+      '<img class="wmark" src="icons/college-mark-white.png" alt="" aria-hidden="true"></section>' +
       (S.ann && S.ann.text ? '<div class="announce" role="note">' + I.bell + '<div><b>إعلان من الأستاذ</b><p>' + esc(S.ann.text) + '</p></div></div>' : '') +
       (next ? '<section class="block"><h3>أقرب واجب<small><button class="linkbtn" data-a="go" data-v="hw">كل الواجبات</button></small></h3>' + hwCard(next) + '</section>' : '') +
       '<section class="block"><div class="card tip"><span class="bulb">' + I.bulb + '</span><p><b>معلومة اليوم:</b> ' + esc(tip) + '</p></div></section>' +
@@ -568,7 +568,7 @@
       case 'bell': S.sheet = { type: 'notif', seen: lsGet('seenTs', '') }; var top = notifItems()[0]; lsSet('seenTs', top && top.ts ? top.ts : new Date().toISOString()); render(); break;
       case 'notifgo': S.sheet = null; if (d.t === 'hw') { go('hw'); loadMine(); } else { go('home'); } break;
       case 'askperm': try { Notification.requestPermission().then(function (r) { if (r === 'granted') { lsSet('notifiedTs', (notifItems()[0] || {}).ts || new Date().toISOString()); toast('تم تفعيل الإشعارات'); } render(); }); } catch (e) { } break;
-      case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#0C2347' : '#12305E'); render(); break;
+      case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#5C1020' : '#6E1423'); render(); break;
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
       case 'startq': var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;
