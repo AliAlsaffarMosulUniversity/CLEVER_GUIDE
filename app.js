@@ -492,7 +492,7 @@
     } else if (G.sent) {
       b = '<div class="fb ok"><b>أرسلنا رابط الدخول</b>افتح بريدك <span class="ltr" style="display:inline">' + esc(G.email) + '</span> واضغط الرابط من هذا الجهاز. إذا لم تجد الرسالة فابحث في مجلد الرسائل غير المرغوب فيها.</div><button class="btn ghost wide" data-a="gateback">تغيير البريد</button>';
     } else if (G.mode === 'teacher') {
-      b = '<p class="small mute">دخول الأستاذ برابط يصل إلى البريد.</p><div class="form"><div class="field"><label for="gemail">بريد الأستاذ</label><input id="gemail" type="email" dir="ltr" autocomplete="email" value="' + esc(G.email || '') + '"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button><button type="button" class="linkbtn" data-a="gmode" data-m="login">رجوع إلى دخول الطلبة</button></div>';
+      b = '<p class="small mute">دخول الأستاذ برابط يصل إلى البريد.</p><div class="form"><div class="field"><label for="gemail">بريد الأستاذ</label><input id="gemail" type="email" dir="ltr" autocomplete="email" value="' + esc(G.email || '') + '"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button></div><div class="tipbox" style="display:grid;gap:10px"><b>أو ادخل بكلمة مرور (بلا حدّ يومي)</b><span class="small">أول مرة فقط: اضغط «عيّن كلمة مرور» وافتح الرسالة في بريدك. بعدها ادخل من «لدي حساب» ببريدك وكلمة المرور، وتبقى صلاحيات الأستاذ كما هي.</span><div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn ink" data-a="gmode" data-m="reset">عيّن كلمة مرور</button><button type="button" class="btn ghost" data-a="gmode" data-m="login">لدي كلمة مرور</button></div></div>';
     } else if (G.mode === 'reset') {
       b = (G.resetSent ? '<div class="fb ok"><b>أرسلنا رابط تعيين كلمة المرور</b>افتح بريدك واضغط الرابط واختر كلمة جديدة، ثم ارجع وسجّل الدخول. ابحث أيضاً في الرسائل غير المرغوب فيها.</div>' : '') +
         '<form class="form" data-form="reset"><div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" name="email" type="email" dir="ltr" inputmode="email" autocomplete="email" required value="' + esc(G.email || '') + '"></div><button class="btn wide" type="submit"' + (G.busy ? ' disabled' : '') + '>أرسل رابط تعيين كلمة المرور</button><button type="button" class="linkbtn" data-a="gmode" data-m="login">رجوع إلى الدخول</button></form>';
@@ -663,7 +663,7 @@
     if (!DOMAIN.test(em)) { S.gate = { email: em, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; }
     S.gate = { mode: 'teacher', email: em, busy: true }; render();
     try { await sendLink(em); lsSet('pending', em); S.gate = { mode: 'teacher', email: em, sent: true }; }
-    catch (e) { S.gate = { mode: 'teacher', email: em, err: /QUOTA|LIMIT|TOO_MANY/.test(e.message) ? 'وصلنا الحد اليومي لرسائل الرابط. حاول غداً، أو ادخل بكلمة المرور.' : authErr(e) }; }
+    catch (e) { S.gate = { mode: 'teacher', email: em, err: /QUOTA|LIMIT|TOO_MANY/.test(e.message) ? 'وصلنا الحد اليومي لرسائل الرابط. استعمل «عيّن كلمة مرور» في الأسفل لتدخل الآن.' : authErr(e) }; }
     render();
   }
   async function completeLink(em) {
