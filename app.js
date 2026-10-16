@@ -105,7 +105,7 @@
     stats: async function () { var d = await fs('GET', '/stats/main'); return d ? decD(d) : {}; },
     quiz: function (n, pass) { var f = {}; f['a' + n] = 1; f['p' + n] = pass ? 1 : 0; return incr(f); },
     profile: async function () { var d = await fs('GET', '/users/' + AUTH.uid); return d ? decD(d) : null; },
-    saveProfile: async function (p) { await fs('PATCH', '/users/' + AUTH.uid, encF({ name: p.name, group: p.group || '', email: AUTH.email, joined: new Date() })); await incr({ users: 1 }); },
+    saveProfile: async function (p) { await fs('PATCH', '/users/' + AUTH.uid, encF({ name: p.name, group: p.group || '', email: AUTH.email, joined: (S.profile && S.profile.joined) ? new Date(S.profile.joined) : new Date(), fbSeen: !!(S.profile && S.profile.fbSeen) })); if (!(S.profile && S.profile.joined)) await incr({ users: 1 }); },
     users: async function () { var d = await fs('GET', '/users?pageSize=500'); return ((d && d.documents) || []).map(decD); },
     homework: async function () { var d = await fs('GET', '/homework?pageSize=200'); var l = ((d && d.documents) || []).map(decD); lsSet('hwcache', l); return l; },
     addHw: function (h) { return fs('POST', '/homework', encF({ title: h.title, ch: +h.ch || 0, details: h.details || '', due: h.due || '', link: h.link || '', created: new Date() })); },
@@ -153,6 +153,10 @@
   function rateName(n) { var r = RATES.filter(function (x) { return x[0] === +n; })[0]; return r ? r[1] : '—'; }
   function maybeAskRating() {
     if (!AUTH || isAdmin() || !S.profile || S.profile.fbSeen || lsGet('fbseen-' + AUTH.uid, false)) return;
+    /* لا يظهر إلا بعد مرور يومين على تسجيل الطالب */
+    var fk = 'first-' + AUTH.uid, first = lsGet(fk, null); if (!first) { first = new Date().toISOString(); lsSet(fk, first); }
+    var j = Date.parse(S.profile.joined || '') || Date.parse(first);
+    if (Date.now() - j < 2 * 864e5) return;
     lsSet('fbseen-' + AUTH.uid, true); S.profile.fbSeen = true; lsSet('prof', S.profile);
     DB.rateSeen().catch(function () { });
     setTimeout(function () { if (S.view !== 'gate' && !S.sheet) { S.sheet = { type: 'rate' }; render(); } }, 2500);
@@ -261,6 +265,7 @@
     }
   }
   async function pollNotifs() {
+    maybeAskRating();
     if (!AUTH || document.hidden) return;
     try { S.hw = await DB.homework(); } catch (e) { }
     try { S.ann = await DB.announce(); } catch (e) { }
