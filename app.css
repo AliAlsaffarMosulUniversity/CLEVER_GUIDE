@@ -1,25 +1,28 @@
 /* حقيبة الحاسوب — لوحة دوائر: أرضية نقطية، أزرق مخضر للشبكات، كهرماني للتنبيه */
-/* أبيض وأزرق بتباين عالٍ: نص شبه أسود على أبيض، وأزرق جامعي عميق للعناصر */
+/* نهاري: أبيض وماروني — ليلي: أزرق وأبيض */
 :root{
-  --bg:#F4F7FC; --surf:#FFFFFF; --surf2:#E9F0FB; --line:#C9D6EC; --ink:#0A1428; --mute:#33415C;
-  --acc:#0B4AA2; --accs:#E3EDFC; --onacc:#FFFFFF; --amb:#1D63C4; --ambs:#E6F0FE;
-  --ai:#0A3F8C; --ais:#E1EBFA; --good:#0E5424; --goods:#DDF1E3; --bad:#861A10; --bads:#FBE3DE;
-  --tk:#0A1428; --navy:#0B3A80; --navy2:#082C62; --gold:#DCE8FA; --onnavy:#FFFFFF;
+  --bg:#FFFFFF; --surf:#FFFFFF; --surf2:#F8F1F2; --line:#E2CDD1; --ink:#1A0D10; --mute:#4A3236;
+  --acc:#7A1E2C; --accs:#F6E6E9; --onacc:#FFFFFF; --amb:#9B2B3B; --ambs:#FBEDEF;
+  --ai:#6A1826; --ais:#F5E4E7; --good:#0E5424; --goods:#DDF1E3; --bad:#8A1A10; --bads:#FBE3DE;
+  --tk:#1A0D10; --navy:#7A1E2C; --navy2:#5E1520; --gold:#F4D9DE; --onnavy:#FFFFFF;
+  --btn:#7A1E2C; --onbtn:#FFFFFF; --bold:#7A1E2C;
   --f-disp:"Cairo","IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
   --f-body:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
   --f-mono:"JetBrains Mono",Consolas,"Courier New",monospace;
   --r:14px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#08111F; --surf:#0F1C33; --surf2:#162845; --line:#2C4470; --ink:#F4F8FF; --mute:#D0DBEE;
-  --acc:#9CC8FF; --accs:#14305A; --onacc:#06142B; --amb:#7DB4FF; --ambs:#142C52;
-  --ai:#B9D8FF; --ais:#14305A; --good:#6FD995; --goods:#123321; --bad:#FF9C88; --bads:#3D1A14;
-  --tk:#06142B; --navy:#0B3A80; --navy2:#072859; --gold:#DCE8FA; color-scheme:dark}}
+  --bg:#0B2A5B; --surf:#113570; --surf2:#174080; --line:#3A64A6; --ink:#FFFFFF; --mute:#E3ECFA;
+  --acc:#FFFFFF; --accs:#1B4A92; --onacc:#0B2A5B; --amb:#CFE2FF; --ambs:#1B4A92;
+  --ai:#DDEBFF; --ais:#1B4A92; --good:#8BEBAE; --goods:#123D2A; --bad:#FFB4A6; --bads:#4A1F1A;
+  --tk:#0B2A5B; --navy:#071D42; --navy2:#05162F; --gold:#FFFFFF;
+  --btn:#FFFFFF; --onbtn:#0B3A80; --bold:#FFFFFF; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#08111F; --surf:#0F1C33; --surf2:#162845; --line:#2C4470; --ink:#F4F8FF; --mute:#D0DBEE;
-  --acc:#9CC8FF; --accs:#14305A; --onacc:#06142B; --amb:#7DB4FF; --ambs:#142C52;
-  --ai:#B9D8FF; --ais:#14305A; --good:#6FD995; --goods:#123321; --bad:#FF9C88; --bads:#3D1A14;
-  --tk:#06142B; --navy:#0B3A80; --navy2:#072859; --gold:#DCE8FA; color-scheme:dark}
+  --bg:#0B2A5B; --surf:#113570; --surf2:#174080; --line:#3A64A6; --ink:#FFFFFF; --mute:#E3ECFA;
+  --acc:#FFFFFF; --accs:#1B4A92; --onacc:#0B2A5B; --amb:#CFE2FF; --ambs:#1B4A92;
+  --ai:#DDEBFF; --ais:#1B4A92; --good:#8BEBAE; --goods:#123D2A; --bad:#FFB4A6; --bads:#4A1F1A;
+  --tk:#0B2A5B; --navy:#071D42; --navy2:#05162F; --gold:#FFFFFF;
+  --btn:#FFFFFF; --onbtn:#0B3A80; --bold:#FFFFFF; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -442,3 +445,10 @@ th{font-size:.86rem;color:var(--ink)}
 .opt{font-size:1rem}
 .btn{font-size:1rem}
 .chcard.ai .ic .num{background:var(--surf);color:var(--ai);border-color:var(--ai)}
+
+/* الأزرار: ماروني بنص أبيض عريض نهاراً، وبيضاء بنص أزرق عريض ليلاً */
+.btn,.btn.ink,.tab[aria-pressed="true"]{background:var(--btn);color:var(--onbtn);border-color:var(--btn);font-weight:700}
+.btn.ghost{background:transparent;color:var(--acc);border:2px solid var(--acc);font-weight:700}
+.btn:disabled{opacity:.6}
+b,strong{color:var(--bold)}
+.hero b,.top b,.btn b,.admin-head b,.out b,.flash .back b,.fb b,.tab b,.bdot{color:inherit}
