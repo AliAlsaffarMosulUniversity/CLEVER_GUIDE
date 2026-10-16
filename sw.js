@@ -1,5 +1,5 @@
 /* يحفظ ملفات التطبيق ليعمل دون إنترنت؛ بيانات قاعدة البيانات لا تُحفظ هنا */
-var C = 'c2-v14';
+var C = 'c2-v15';
 var FILES = ['./', 'index.html', 'app.css', 'config.js', 'data1.js', 'data2.js', 'art.js', 'app.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/college-logo.png', 'icons/college-logo-160.png', 'icons/college-mark-white.png'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(C).then(function (c) { return c.addAll(FILES); })); self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(caches.keys().then(function (k) { return Promise.all(k.filter(function (x) { return x !== C; }).map(function (x) { return caches.delete(x); })); })); self.clients.claim(); });
