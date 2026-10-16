@@ -491,3 +491,24 @@ b,strong{color:var(--bold)}
   .urow .uact{grid-area:a;flex-direction:column;align-self:start}
 }
 .uhead .uem{font-family:var(--f-body);font-size:.9rem;text-align:left;direction:rtl}
+
+/* نتائج الاختبارات */
+.reschips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:thin}
+.reschips .tab{flex:none}
+.rrow{grid-template-columns:36px minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,.8fr)}
+.rrow2{grid-template-columns:36px minmax(0,1.4fr) minmax(0,1fr) 90px 80px 80px 110px}
+.rrow .rdone,.rrow .ravg,.rrow2 .rb1,.rrow2 .rl1,.rrow2 .rc1,.rrow2 .rt1{font-size:.9rem}
+.rrow2 .lbl{display:none}
+.notlist{display:flex;flex-wrap:wrap;gap:6px}
+@media (max-width:720px){
+  .rrow{grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"n m v" "n g d"}
+  .rrow .ravg{grid-area:v;justify-self:end}
+  .rrow .rdone{grid-area:d;justify-self:end;color:var(--mute)}
+  .rrow2{grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"n m b" "n g g" "n x x"}
+  .rrow2 .rb1{grid-area:b;justify-self:end}
+  .rrow2 .rl1,.rrow2 .rc1,.rrow2 .rt1{display:inline;color:var(--mute);font-size:.85rem}
+  .rrow2 .rl1{grid-area:x}
+  .rrow2 .rc1,.rrow2 .rt1{display:none}
+  .rrow2 .lbl{display:inline}
+}
+@media (min-width:721px){.reschips{flex-wrap:wrap;overflow:visible}}

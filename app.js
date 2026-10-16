@@ -120,6 +120,9 @@
     rate: async function (r, note) { var f = {}; f['r' + r] = 1; await incr(f); if (note) await fs('POST', '/fbnotes', encF({ text: note, ts: new Date() })); },
     ratings: async function () { var d = await fs('GET', '/fbnotes?pageSize=500'); return ((d && d.documents) || []).map(decD); },
     rateSeen: function () { return fs('PATCH', '/users/' + AUTH.uid + '?updateMask.fieldPaths=fbSeen', encF({ fbSeen: true })); },
+    myResults: async function () { var d = await fs('GET', '/results/' + AUTH.uid); return d ? decD(d) : {}; },
+    saveResult: function (f) { var q = Object.keys(f).map(function (k) { return 'updateMask.fieldPaths=' + k; }).join('&'); return fs('PATCH', '/results/' + AUTH.uid + '?' + q, encF(f)); },
+    results: async function () { var d = await fs('GET', '/results?pageSize=500'); return ((d && d.documents) || []).map(decD); },
     banned: async function () { var d = await fs('GET', '/banned?pageSize=500'); return ((d && d.documents) || []).map(decD); },
     amBanned: async function () { return !!(await fs('GET', '/banned/' + AUTH.uid)); },
     ban: function (u) { return fs('PATCH', '/banned/' + u.id, encF({ name: u.name || '', email: u.email || '', group: u.group || '', ts: new Date() })); },
@@ -149,6 +152,9 @@
       delQ: async function (i) { D.qs = D.qs.filter(function (q) { return q.id !== i; }); sv(); },
       rate: async function (r, note) { D.stats['r' + r] = (D.stats['r' + r] || 0) + 1; if (note) (D.notes = D.notes || []).push({ id: id(), text: note, ts: new Date().toISOString() }); sv(); },
       ratings: async function () { return D.notes || []; },
+      myResults: async function () { return ((D.res || {})[AUTH.uid]) || {}; },
+      saveResult: async function (f) { D.res = D.res || {}; var o = {}; for (var k in f) o[k] = f[k] instanceof Date ? f[k].toISOString() : f[k]; D.res[AUTH.uid] = Object.assign({ id: AUTH.uid }, D.res[AUTH.uid] || {}, o); sv(); },
+      results: async function () { return Object.keys(D.res || {}).map(function (k) { return D.res[k]; }); },
       banned: async function () { return D.banned || []; },
       amBanned: async function () { return (D.banned || []).some(function (b) { return b.id === AUTH.uid; }); },
       ban: async function (u) { (D.banned = D.banned || []).push({ id: u.id, name: u.name, email: u.email, group: u.group, ts: new Date().toISOString() }); sv(); },
@@ -370,7 +376,7 @@
     if (!it) {
       var pct = Math.round(Q.score / Q.items.length * 100);
       var msg = pct >= 90 ? 'ممتاز، أنت مستعد للامتحان.' : pct >= 70 ? 'جيد جداً، راجع الأسئلة التي أخطأت فيها.' : pct >= 50 ? 'ناجح، لكن الملخص يحتاج مراجعة ثانية.' : 'راجع ملخص الفصل ثم أعد المحاولة.';
-      return topbar(Q.title, true) + '<main class="wrap"><div class="card score" style="margin-top:14px"><div class="big">' + pct + '%</div><p>' + Q.score + ' من ' + Q.items.length + '</p><p class="mute">' + msg + '</p></div>' +
+      return topbar(Q.title, true) + '<main class="wrap"><div class="card score" style="margin-top:14px"><div class="big">' + pct + '%</div><p>' + Q.score + ' من ' + Q.items.length + '</p><p class="mute">' + msg + '</p>' + (Q.n >= 0 && !isAdmin() ? '<p class="small mute">أُرسلت نتيجتك إلى الأستاذ.</p>' : '') + '</div>' +
         (Q.wrong.length ? '<section class="block"><h3>أسئلة تحتاج مراجعة</h3>' + Q.wrong.map(function (w) { return '<div class="card" style="margin-top:8px"><p><b>' + esc(w.q) + '</b></p><p class="small" style="color:var(--good)">الإجابة: ' + esc(w.o[w.a]) + '</p><p class="small mute">' + esc(w.e) + '</p></div>'; }).join('') + '</section>' : '') +
         '<div class="row" style="margin-top:16px"><button class="btn" data-a="retry">أعد الاختبار</button><button class="btn ghost" data-a="back">رجوع</button></div></main>';
     }
@@ -383,7 +389,7 @@
     return topbar(Q.title, true) + '<main class="wrap"><div class="qwrap"><div class="qtop"><span>السؤال ' + (Q.i + 1) + ' من ' + Q.items.length + '</span><span>' + (it.tf ? 'صح أم خطأ' : 'اختيار من متعدد') + (it.ch ? ' · الفصل ' + it.ch : '') + '</span></div><div class="qbar"><i style="width:' + (Q.i / Q.items.length * 100) + '%"></i></div><p class="qtext">' + esc(it.q) + '</p><div class="opts">' + opts + '</div>' + fb + '</div></main>';
   }
   function vTests() {
-    return topbar('الاختبارات') + '<main class="wrap"><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem">الامتحان الشامل</b><p class="small" style="opacity:.85">20 سؤال اختيار من متعدد و 10 عبارات صح أو خطأ من الفصول العشرة، على غرار الامتحان النهائي.</p>' + (P.best[0] != null ? '<p class="small">أفضل نتيجة: <b>' + P.best[0] + '%</b></p>' : '') + '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button></div></section>' +
+    return topbar('الاختبارات') + '<main class="wrap"><div class="tipbox small" style="margin-top:12px">تصل نتائج اختبارات الفصول والامتحان الشامل إلى الأستاذ مع اسمك. الاختبار السريع للتدريب فقط ولا يُرسل.</div><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem">الامتحان الشامل</b><p class="small" style="opacity:.85">20 سؤال اختيار من متعدد و 10 عبارات صح أو خطأ من الفصول العشرة، على غرار الامتحان النهائي.</p>' + (P.best[0] != null ? '<p class="small">أفضل نتيجة: <b>' + P.best[0] + '%</b></p>' : '') + '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button></div></section>' +
       '<section class="block"><div class="row"><button class="btn ghost wide" data-a="quick">اختبار سريع: 10 أسئلة عشوائية</button></div></section>' +
       '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = P.best[c.n]; return '<button class="chcard ' + c.unit + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
   }
@@ -480,7 +486,7 @@
   /* لوحة الأدمن */
   function vAdmin() {
     if (!isAdmin()) return topbar('لوحة الأدمن', true) + '<main class="wrap"><div class="card empty" style="margin-top:14px">هذه الصفحة لأدمن التطبيق فقط.</div></main>';
-    var tabs = [['qs', 'تعليقات الطلبة'], ['hw', 'الواجبات'], ['ann', 'الإعلان'], ['rate', 'آراء الطلبة'], ['users', 'الطلبة'], ['stats', 'الإحصاءات'], ['setup', 'الإعداد']];
+    var tabs = [['qs', 'تعليقات الطلبة'], ['hw', 'الواجبات'], ['ann', 'الإعلان'], ['res', 'نتائج الاختبارات'], ['rate', 'آراء الطلبة'], ['users', 'الطلبة'], ['stats', 'الإحصاءات'], ['setup', 'الإعداد']];
     var A = S.A || {}, b = '';
     if (S.adminTab === 'qs') {
       var all = (A.qs || []).filter(function (q) { return S.qFilter === 'all' || q.status !== 'done'; });
@@ -493,6 +499,8 @@
         '<section class="block"><h3>الواجبات المنشورة<small>' + S.hw.length + '</small></h3>' + (S.hw.length ? S.hw.map(function (h) { return '<div class="hw"><div class="h"><b>' + esc(h.title) + '</b><span class="pill">' + (h.due ? esc(h.due) : 'بلا موعد') + '</span></div>' + (h.details ? '<p>' + esc(h.details) + '</p>' : '') + '<div class="row"><button class="btn danger" data-a="hwdel" data-id="' + h.id + '">حذف الواجب</button></div></div>'; }).join('') : '<p class="mute">لا توجد واجبات.</p>') + '</section>';
     } else if (S.adminTab === 'ann') {
       b = '<form class="form card" style="margin-top:12px" data-form="ann"><b>إعلان يظهر أعلى الصفحة الرئيسية لكل الطلبة</b><div class="field"><label for="annt">نص الإعلان</label><textarea id="annt" name="text" maxlength="500">' + esc((S.ann && S.ann.text) || '') + '</textarea></div><div class="row"><button class="btn" type="submit">نشر الإعلان</button><button class="btn ghost" type="button" data-a="annclear">إزالة الإعلان</button></div></form>';
+    } else if (S.adminTab === 'res') {
+      b = resultsHTML(A);
     } else if (S.adminTab === 'rate') {
       var st2 = S.stats || {}, cnt = RATES.map(function (r) { return +st2['r' + r[0]] || 0; }), tot = cnt.reduce(function (a, c) { return a + c; }, 0);
       var avg = tot ? RATES.reduce(function (a, r, i) { return a + r[0] * cnt[i]; }, 0) / tot : 0, notes = (A.rates || []).slice().sort(function (a, b) { return a.ts < b.ts ? 1 : -1; });
@@ -517,7 +525,7 @@
     }
     return topbar('لوحة الأدمن', true) + '<main class="wrap wide"><div class="admin-head"><b>أدمن التطبيق</b><span class="ltr">' + esc(AUTH.email) + '</span>' + (!LIVE ? '<p class="small" style="margin-top:4px">وضع المعاينة: البيانات محفوظة على هذا الجهاز فقط حتى يُربط التطبيق بقاعدة البيانات.</p>' : '') + '</div><div class="tabs">' + tabs.map(function (t) { return '<button class="tab" data-a="atab" data-t="' + t[0] + '" aria-pressed="' + (S.adminTab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' + b + '</main>';
   }
-  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    function active() {\n      return signed()\n        && !exists(/databases/$(database)/documents/banned/$(request.auth.uid));\n    }\n    match /stats/main { allow read, create, update: if active(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (active() && request.auth.uid == uid);\n      allow create, update: if active() && request.auth.uid == uid;\n      allow delete: if isAdmin();\n    }\n    match /banned/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow write: if isAdmin();\n    }\n    match /homework/{id} { allow read: if active(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if active(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if active()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (active() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n    match /fbnotes/{id} {\n      allow create: if active()\n        && request.resource.data.keys().hasOnly(['text', 'ts'])\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 500;\n      allow read, delete: if isAdmin();\n    }\n  }\n}";
+  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    function active() {\n      return signed()\n        && !exists(/databases/$(database)/documents/banned/$(request.auth.uid));\n    }\n    match /stats/main { allow read, create, update: if active(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (active() && request.auth.uid == uid);\n      allow create, update: if active() && request.auth.uid == uid;\n      allow delete: if isAdmin();\n    }\n    match /banned/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow write: if isAdmin();\n    }\n    match /results/{uid} {\n      allow read: if isAdmin() || (active() && request.auth.uid == uid);\n      allow create, update: if active()\n        && request.auth.uid == uid\n        && request.resource.data.uid == uid\n        && request.resource.data.email == request.auth.token.email;\n      allow delete: if isAdmin();\n    }\n    match /homework/{id} { allow read: if active(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if active(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if active()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (active() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n    match /fbnotes/{id} {\n      allow create: if active()\n        && request.resource.data.keys().hasOnly(['text', 'ts'])\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 500;\n      allow read, delete: if isAdmin();\n    }\n  }\n}";
   function setupHTML() {
     return '<div class="card" style="margin-top:12px;display:grid;gap:10px"><b>' + (LIVE ? 'التطبيق مربوط بقاعدة البيانات' : 'ربط التطبيق بقاعدة البيانات') + '</b><ol class="steps">' +
       ['افتح موقع Firebase وأنشئ مشروعاً مجانياً', 'من قسم Firestore Database أنشئ قاعدة بيانات', 'من تبويب Rules الصق القواعد أدناه واضغط Publish', 'من قسم Authentication فعّل طريقة Email/Password وخيار Email link', 'من Authentication ثم Settings ثم Authorized domains أضف نطاق موقع التطبيق', 'من إعدادات المشروع انسخ apiKey و projectId إلى ملف config.js'].map(function (s) { return '<li>' + s + '</li>'; }).join('') +
@@ -650,10 +658,13 @@
       case 'gateback': S.gate = { email: (S.gate || {}).email }; render(); break;
       case 'confirmemail': var em = ($('#gemail').value || '').trim().toLowerCase(); await completeLink(em); break;
       case 'demologin': var de = ($('#gemail').value || '').trim().toLowerCase(); if (!DOMAIN.test(de)) { S.gate = { email: de, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; } setAuth({ email: de, uid: 'demo-' + de, exp: 9e15 }); await afterLogin(); break;
-      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users') loadUsers(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
+      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users') loadUsers(); if (d.t === 'res') loadResults(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
       case 'rreload': S.A.rates = null; render(); loadRates(); DB.stats().then(function (x) { S.stats = x; render(); }).catch(function () { }); break;
       case 'qf': S.qFilter = d.f; render(); break;
       case 'xls': exportStudents(); break;
+      case 'resch': S.resCh = d.n; render(); break;
+      case 'resreload': S.A.results = null; render(); loadResults(); break;
+      case 'resxls': exportResults(); break;
       case 'ban': case 'udel': case 'unban': {
         if (a !== 'unban' && !el.dataset.sure) { el.dataset.sure = 1; el.textContent = 'تأكيد؟'; return; }
         var uu = (S.A.users || []).concat(S.A.banned || []).filter(function (x) { return x.id === d.id; })[0] || { id: d.id };
@@ -715,7 +726,16 @@
   }
   function finishQuiz() {
     var Q = S.quiz, pct = Math.round(Q.score / Q.items.length * 100);
-    if (Q.n >= 0) { if (P.best[Q.n] == null || pct > P.best[Q.n]) P.best[Q.n] = pct; saveP(); DB.quiz(Q.n, pct >= 50).catch(function () { }); }
+    if (Q.n >= 0) { if (P.best[Q.n] == null || pct > P.best[Q.n]) P.best[Q.n] = pct; saveP(); DB.quiz(Q.n, pct >= 50).catch(function () { }); sendResult(Q.n, pct); }
+  }
+  /* نتيجة الطالب تصل إلى الأستاذ: أعلى درجة وآخر درجة وعدد المحاولات لكل اختبار */
+  function sendResult(n, pct) {
+    if (!AUTH || isAdmin()) return;
+    var R = S.myres || lsGet('myres', {}) || {}, f = {};
+    f.uid = AUTH.uid; f.email = AUTH.email; f.name = (S.profile && S.profile.name) || ''; f.group = (S.profile && S.profile.group) || '';
+    f['b' + n] = Math.max(+R['b' + n] || 0, pct); f['l' + n] = pct; f['c' + n] = (+R['c' + n] || 0) + 1; f['t' + n] = new Date();
+    var c = Object.assign({}, R, f); c['t' + n] = f['t' + n].toISOString(); S.myres = c; lsSet('myres', c);
+    DB.saveResult(f).catch(function () { });
   }
 
   /* ---------- الدخول ---------- */
@@ -747,7 +767,7 @@
     DB.announce().then(function (a) { S.ann = a; if (!S.sheet) render(); sysNotify(); }).catch(function () { });
     loadMine();
   }
-  function loadMine() { if (!AUTH) return; DB.myQs().then(function (l) { S.myqs = l; if (S.view === 'hw') render(); }).catch(function () { }); }
+  function loadMine() { if (!AUTH) return; if (!isAdmin()) DB.myResults().then(function (r) { var L = lsGet('myres', {}) || {}; Object.keys(L).forEach(function (k) { if (/^[bc]\d/.test(k) && +L[k] > (+r[k] || 0)) r[k] = L[k]; }); S.myres = r; lsSet('myres', r); }).catch(function () { }); DB.myQs().then(function (l) { S.myqs = l; if (S.view === 'hw') render(); }).catch(function () { }); }
   function loadAdmin() {
     if (!isAdmin()) return; S.A = S.A || {}; S.A.loading = true; render();
     DB.allQs().then(function (l) { S.A.qs = l; }).catch(function () { toast('تعذر تحميل التعليقات'); }).then(function () { S.A.loading = false; if (S.view === 'admin') render(); });
@@ -763,20 +783,64 @@
     (A.banned || []).forEach(function (x) { if (!us.some(function (u) { return u.id === x.id; })) us.push(x); });
     var head = ['ت', 'الاسم', 'الشعبة', 'البريد الإلكتروني', 'تاريخ التسجيل', 'الحالة'];
     var rows = us.map(function (u, i) { return [i + 1, u.name || '', u.group || '', u.email || '', u.joined ? String(u.joined).slice(0, 10) : '', banIds[u.id] ? 'محظور' : 'فعّال']; });
-    var fn = 'طلبة حقيبة الحاسوب ' + today();
+    await exportSheet(head, rows, 'طلبة حقيبة الحاسوب ' + today(), 'الطلبة', [5, 28, 18, 34, 14, 10]);
+  }
+  async function exportSheet(head, rows, fn, sheet, widths) {
     try {
       if (!window.XLSX) { toast('جارٍ تجهيز الملف…'); await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); }
       var ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
-      ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 18 }, { wch: 34 }, { wch: 14 }, { wch: 10 }];
+      ws['!cols'] = head.map(function (_, k) { return { wch: widths[k] || 14 }; });
       var wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
-      XLSX.utils.book_append_sheet(wb, ws, 'الطلبة');
+      XLSX.utils.book_append_sheet(wb, ws, sheet);
       saveBlob(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fn + '.xlsx');
     } catch (e) {
-      /* بديل: ملف CSV يفتحه إكسل مباشرة */
-      var csv = '\ufeff' + [head].concat(rows).map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+      var csv = '﻿' + [head].concat(rows).map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
       saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), fn + '.csv');
     }
-    toast('نُزّل ملف الطلبة');
+    toast('نُزّل الملف');
+  }
+  /* نتائج الاختبارات للأدمن */
+  var TESTS = [[0, 'الامتحان الشامل']].concat(CH.map(function (c) { return [c.n, 'الفصل ' + c.n]; }));
+  function loadResults() {
+    S.A = S.A || {};
+    DB.results().then(function (l) { S.A.results = l; render(); }).catch(function () { S.A.results = []; render(); toast('تعذر تحميل النتائج. تأكد من نشر القواعد الجديدة.'); });
+    if (!S.A.users) DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { });
+  }
+  function resRows(A) {
+    var map = {}; (A.results || []).forEach(function (r) { map[r.id] = r; });
+    var us = (A.users || []).filter(function (u) { return (u.email || '').toLowerCase() !== ADMIN; });
+    var rows = us.map(function (u) { var r = map[u.id] || {}; return Object.assign({}, r, { id: u.id, name: u.name || r.name, group: u.group || r.group, email: u.email || r.email }); });
+    (A.results || []).forEach(function (r) { if (!us.some(function (u) { return u.id === r.id; })) rows.push(r); });
+    return rows.sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
+  }
+  function pcls(p) { return p == null ? '' : p >= 50 ? 'good' : 'bad'; }
+  function resultsHTML(A) {
+    if (!A.results) return '<p class="mute" style="margin-top:12px">جارٍ تحميل النتائج…</p>';
+    var rows = resRows(A), ch = S.resCh == null ? 'all' : String(S.resCh);
+    var top = '<div class="row" style="margin-top:12px;justify-content:space-between;align-items:center"><p class="small mute" style="margin:0">تُسجَّل النتائج من تاريخ إضافة هذه الميزة.</p><div class="row" style="gap:8px"><button class="tab" data-a="resreload">تحديث</button><button class="btn" data-a="resxls"' + (rows.length ? '' : ' disabled') + '>تصدير إلى إكسل</button></div></div>' +
+      '<div class="reschips"><button class="tab" data-a="resch" data-n="all" aria-pressed="' + (ch === 'all') + '">ملخص الكل</button>' + TESTS.map(function (t) { return '<button class="tab" data-a="resch" data-n="' + t[0] + '" aria-pressed="' + (ch === String(t[0])) + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    if (ch === 'all') {
+      var tested = rows.filter(function (r) { return TESTS.some(function (t) { return r['c' + t[0]]; }); });
+      var avgs = TESTS.map(function (t) { var v = rows.filter(function (r) { return r['c' + t[0]]; }).map(function (r) { return +r['b' + t[0]]; }); return [t[1], v.length, v.length ? Math.round(v.reduce(function (a, x) { return a + x; }, 0) / v.length) : null]; });
+      return top + '<div class="kpis" style="margin-top:12px"><div class="kpi"><b>' + fmtN(tested.length) + '</b><span>طلبة اختبروا</span></div><div class="kpi"><b>' + fmtN(rows.length - tested.length) + '</b><span>لم يختبروا بعد</span></div></div>' +
+        '<section class="block"><h3>متوسط الصف لكل اختبار</h3><div class="ratebars">' + avgs.map(function (a) { return '<div class="rb"><span>' + a[0] + '</span><div class="bar"><i style="width:' + (a[2] || 0) + '%"></i></div><b>' + (a[2] == null ? '—' : a[2] + '%') + ' · ' + fmtN(a[1]) + ' طالب</b></div>'; }).join('') + '</div></section>' +
+        '<section class="block"><h3>الطلبة<small>' + rows.length + '</small></h3><div class="ulist"><div class="urow rrow uhead"><span class="un">ت</span><b class="unm">الاسم</b><span class="ugr">الشعبة</span><span class="rdone">اختبارات أُنجزت</span><span class="ravg">متوسط أعلى الدرجات</span></div>' +
+        rows.map(function (r, i) { var ds = TESTS.filter(function (t) { return r['c' + t[0]]; }); var av = ds.length ? Math.round(ds.reduce(function (a, t) { return a + +r['b' + t[0]]; }, 0) / ds.length) : null; return '<div class="urow rrow"><span class="un">' + (i + 1) + '</span><b class="unm">' + esc(r.name || '—') + '</b><span class="ugr">' + esc(r.group || '—') + '</span><span class="rdone">' + ds.length + ' من ' + TESTS.length + '</span><span class="ravg">' + (av == null ? '<span class="pill">لم يختبر</span>' : '<span class="pill ' + pcls(av) + '">' + av + '%</span>') + '</span></div>'; }).join('') + '</div></section>';
+    }
+    var n = +ch, name = TESTS.filter(function (t) { return t[0] === n; })[0][1];
+    var did = rows.filter(function (r) { return r['c' + n]; }).sort(function (a, b) { return (+b['b' + n]) - (+a['b' + n]); }), not = rows.filter(function (r) { return !r['c' + n]; });
+    var avg = did.length ? Math.round(did.reduce(function (a, r) { return a + +r['b' + n]; }, 0) / did.length) : null, pass = did.filter(function (r) { return +r['b' + n] >= 50; }).length;
+    return top + '<div class="kpis" style="margin-top:12px"><div class="kpi"><b>' + fmtN(did.length) + '</b><span>اختبروا</span></div><div class="kpi"><b>' + (avg == null ? '—' : avg + '%') + '</b><span>متوسط الصف</span></div><div class="kpi"><b>' + (did.length ? Math.round(pass / did.length * 100) + '%' : '—') + '</b><span>نسبة النجاح</span></div><div class="kpi"><b>' + fmtN(not.length) + '</b><span>لم يختبروا</span></div></div>' +
+      '<section class="block"><h3>نتائج ' + name + '<small>' + did.length + '</small></h3>' + (did.length ? '<div class="ulist"><div class="urow rrow2 uhead"><span class="un">ت</span><b class="unm">الاسم</b><span class="ugr">الشعبة</span><span class="rb1">أعلى درجة</span><span class="rl1">آخر درجة</span><span class="rc1">المحاولات</span><span class="rt1">آخر محاولة</span></div>' +
+      did.map(function (r, i) { return '<div class="urow rrow2"><span class="un">' + (i + 1) + '</span><b class="unm">' + esc(r.name || '—') + '</b><span class="ugr">' + esc(r.group || '—') + '</span><span class="rb1"><span class="pill ' + pcls(+r['b' + n]) + '">' + r['b' + n] + '%</span></span><span class="rl1"><span class="lbl">آخر درجة: </span>' + r['l' + n] + '%<span class="lbl"> · محاولات: ' + r['c' + n] + ' · ' + fmtDate(r['t' + n]) + '</span></span><span class="rc1">' + r['c' + n] + '</span><span class="rt1">' + fmtDate(r['t' + n]) + '</span></div>'; }).join('') + '</div>' : '<p class="mute">لم يختبر أحد بعد.</p>') + '</section>' +
+      (not.length ? '<section class="block"><h3>لم يختبروا بعد<small>' + not.length + '</small></h3><div class="notlist">' + not.map(function (r) { return '<span class="pill">' + esc(r.name || r.email || '—') + '</span>'; }).join('') + '</div></section>' : '');
+  }
+  async function exportResults() {
+    var rows = resRows(S.A || {});
+    var head = ['ت', 'الاسم', 'الشعبة', 'البريد الإلكتروني'];
+    TESTS.forEach(function (t) { head.push(t[1] + ' - أعلى درجة %', t[1] + ' - آخر درجة %', t[1] + ' - المحاولات'); });
+    var data = rows.map(function (r, i) { var o = [i + 1, r.name || '', r.group || '', r.email || '']; TESTS.forEach(function (t) { var c = r['c' + t[0]]; o.push(c ? +r['b' + t[0]] : '', c ? +r['l' + t[0]] : '', c ? +c : 0); }); return o; });
+    await exportSheet(head, data, 'نتائج اختبارات حقيبة الحاسوب ' + today(), 'النتائج', [5, 26, 16, 30]);
   }
   function loadUsers() { S.A = S.A || {}; DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { toast('تعذر تحميل قائمة الطلبة'); }); DB.banned().then(function (l) { S.A.banned = l; render(); }).catch(function () { S.A.banned = []; }); }
 
