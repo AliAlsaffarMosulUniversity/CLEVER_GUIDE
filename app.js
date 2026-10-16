@@ -509,13 +509,12 @@
         '<section class="block"><h3>توزيع الآراء</h3><div class="ratebars">' + RATES.map(function (r, i) { var c = cnt[i], pc = tot ? Math.round(c / tot * 100) : 0; return '<div class="rb"><span>' + r[1] + '</span><div class="bar"><i style="width:' + pc + '%"></i></div><b>' + fmtN(c) + ' · ' + pc + '%</b></div>'; }).join('') + '</div></section>' +
         '<section class="block"><h3>ملاحظات الطلبة<small>' + notes.length + '</small></h3>' + (!A.rates ? '<p class="mute">جارٍ التحميل…</p>' : notes.length ? notes.map(function (n) { return '<div class="cm"><div class="meta"><span>' + fmtDate(n.ts) + '</span></div><p>' + esc(n.text) + '</p></div>'; }).join('') : '<p class="mute">لا توجد ملاحظات بعد.</p>') + '</section>';
     } else if (S.adminTab === 'users') {
-      var bans = A.banned || [], banIds = {}; bans.forEach(function (x) { banIds[x.id] = 1; });
-      var us = (A.users || []).filter(function (u) { return (u.email || '').toLowerCase() !== ADMIN; }).sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
-      var onlyBanned = bans.filter(function (x) { return !us.some(function (u) { return u.id === x.id; }); });
-      function urow(u, isB, i) { return '<div class="urow' + (isB ? ' banrow' : '') + '"><span class="un">' + (i + 1) + '</span><b class="unm">' + esc(u.name || '—') + (isB ? ' <span class="pill bad">محظور</span>' : '') + '</b><span class="ugr">' + esc(u.group || '—') + '</span><span class="uem ltr">' + esc(u.email || '') + '</span><div class="uact">' + (isB ? '<button class="btn ghost sm" data-a="unban" data-id="' + u.id + '">إلغاء الحظر</button>' : '<button class="btn danger sm" data-a="ban" data-id="' + u.id + '">حظر</button>') + (u.joined !== undefined || !isB ? '<button class="btn danger sm" data-a="udel" data-id="' + u.id + '">حذف</button>' : '') + '</div></div>'; }
-      b = '<div class="row" style="margin-top:12px;justify-content:space-between;align-items:center"><p class="small mute" style="margin:0">الطلبة المسجلون في التطبيق: ' + us.length + (bans.length ? ' · المحظورون: ' + bans.length : '') + '</p><button class="btn" data-a="xls"' + (us.length || bans.length ? '' : ' disabled') + '>تصدير إلى إكسل</button></div>' +
+      var all = studentRows(A), list = applyF(all, null), nb = all.filter(function (r) { return r._ban; }).length;
+      function urow(u, i) { var isB = u._ban, sc = u._sc; return '<div class="urow' + (isB ? ' banrow' : '') + '"><span class="un">' + (i + 1) + '</span><b class="unm">' + esc(u.name || '—') + (isB ? ' <span class="pill bad">محظور</span>' : '') + (sc != null ? ' <span class="pill ' + pcls(sc) + '" title="متوسط أعلى الدرجات">' + sc + '%</span>' : '') + '</b><span class="ugr">' + esc(u.group || '—') + '</span><span class="uem ltr">' + esc(u.email || '') + '</span><div class="uact">' + (isB ? '<button class="btn ghost sm" data-a="unban" data-id="' + u.id + '">إلغاء الحظر</button>' : '<button class="btn danger sm" data-a="ban" data-id="' + u.id + '">حظر</button>') + (!u._gone ? '<button class="btn danger sm" data-a="udel" data-id="' + u.id + '">حذف</button>' : '') + '</div></div>'; }
+      b = '<div class="row" style="margin-top:12px;justify-content:space-between;align-items:center"><p class="small mute" style="margin:0">الطلبة المسجلون في التطبيق: ' + all.filter(function (r) { return !r._gone; }).length + (nb ? ' · المحظورون: ' + nb : '') + '</p><button class="btn" data-a="xls"' + (list.length ? '' : ' disabled') + '>تصدير إلى إكسل</button></div>' +
         '<div class="tipbox small" style="margin-top:8px"><b>حظر:</b> يمنع الطالب من استخدام التطبيق، ويمكنك إلغاؤه لاحقاً. <b>حذف:</b> يمسح بيانات الطالب من القائمة، لكنه يستطيع الدخول من جديد ما لم تحظره.</div>' +
-        '<div class="ulist" style="margin-top:8px"><div class="urow uhead"><span class="un">ت</span><b class="unm">الاسم</b><span class="ugr">الشعبة</span><span class="uem">البريد</span><span class="uact">إجراء</span></div>' + us.concat(onlyBanned).map(function (u, i) { return urow(u, i >= us.length || !!banIds[u.id], i); }).join('') + '</div>';
+        filterBar(all, 'users', list.length) +
+        (list.length ? '<div class="ulist" style="margin-top:8px"><div class="urow uhead"><span class="un">ت</span><b class="unm">الاسم</b><span class="ugr">الشعبة</span><span class="uem">البريد</span><span class="uact">إجراء</span></div>' + list.map(urow).join('') + '</div>' : '<div class="card empty" style="margin-top:8px">لا يوجد طلبة بهذه الفلاتر.</div>');
     } else if (S.adminTab === 'stats') {
       var st = S.stats || {};
       b = '<div class="kpis" style="margin-top:12px"><div class="kpi"><b>' + fmtN(st.users) + '</b><span>مستخدمو التطبيق</span></div><div class="kpi"><b>' + fmtN(st.visits) + '</b><span>مرات الفتح</span></div><div class="kpi"><b>' + fmtN((A.qs || []).length) + '</b><span>تعليقات الطلبة</span></div><div class="kpi"><b>' + fmtN(st.a0) + '</b><span>محاولات الامتحان الشامل</span></div></div>' +
@@ -707,6 +706,7 @@
       case 'rreload': S.A.rates = null; render(); loadRates(); DB.stats().then(function (x) { S.stats = x; render(); }).catch(function () { }); break;
       case 'qf': S.qFilter = d.f; render(); break;
       case 'xls': exportStudents(); break;
+      case 'fclear': S.F = { q: '', st: '', sec: '', status: '', act: '', res: '', sort: 'name' }; render(); break;
       case 'resch': S.resCh = d.n; render(); break;
       case 'resreload': S.A.results = null; render(); loadResults(); break;
       case 'resxls': exportResults(); break;
@@ -728,7 +728,13 @@
       case 'annclear': try { await DB.setAnnounce(''); S.ann = { text: '' }; render(); toast('أزيل الإعلان'); } catch (e) { toast('تعذر الحفظ'); } break;
     }
   });
+  var fqT;
+  document.addEventListener('change', function (ev) {
+    var el = ev.target, k = el.getAttribute && el.getAttribute('data-f'); if (!k || el.tagName !== 'SELECT') return;
+    S.F[k] = el.value; render(); var n = document.querySelector('select[data-f="' + k + '"]'); if (n) n.focus();
+  });
   document.addEventListener('input', function (ev) {
+    if (ev.target.id === 'fq') { var v = ev.target.value; clearTimeout(fqT); fqT = setTimeout(function () { S.F.q = v; render(); var f = $('#fq'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }, 250); return; }
     var el = ev.target, k = el.getAttribute('data-in'); if (!k) return;
     if (k === 'devq') { S.ts.q = el.value; var q = el.value.trim().toLowerCase(); $('#devlist').innerHTML = Object.keys(DEV).filter(function (x) { var dd = DEV[x]; return !q || (dd.ar + dd.en + dd.fn).toLowerCase().indexOf(q) >= 0; }).map(devCard).join(''); }
     if (k === 'pb') { S.ts.v = S.ts.v || {}; S.ts.v[el.getAttribute('data-f')] = el.value; updPrompt(); }
@@ -823,12 +829,10 @@
   function loadScript(src) { return new Promise(function (ok, no) { var x = document.createElement('script'); x.src = src; x.onload = ok; x.onerror = no; document.head.appendChild(x); }); }
   function saveBlob(bl, name) { var a = document.createElement('a'), u = URL.createObjectURL(bl); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }
   async function exportStudents() {
-    var A = S.A || {}, banIds = {}; (A.banned || []).forEach(function (x) { banIds[x.id] = 1; });
-    var us = (A.users || []).filter(function (u) { return (u.email || '').toLowerCase() !== ADMIN; }).sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
-    (A.banned || []).forEach(function (x) { if (!us.some(function (u) { return u.id === x.id; })) us.push(x); });
-    var head = ['ت', 'الاسم', 'الشعبة', 'البريد الإلكتروني', 'تاريخ التسجيل', 'الحالة'];
-    var rows = us.map(function (u, i) { return [i + 1, u.name || '', u.group || '', u.email || '', u.joined ? String(u.joined).slice(0, 10) : '', banIds[u.id] ? 'محظور' : 'فعّال']; });
-    await exportSheet(head, rows, 'طلبة حقيبة الحاسوب ' + today(), 'الطلبة', [5, 28, 18, 34, 14, 10]);
+    var list = applyF(studentRows(S.A || {}), null);
+    var head = ['ت', 'الاسم', 'الشعبة', 'الدراسة', 'شعبة', 'البريد الإلكتروني', 'تاريخ التسجيل', 'الحالة', 'متوسط أعلى الدرجات %'];
+    var rows = list.map(function (u, i) { return [i + 1, u.name || '', u.group || '', study(u.group), section(u.group), u.email || '', u.joined ? String(u.joined).slice(0, 10) : '', u._ban ? 'محظور' : 'فعّال', u._sc == null ? '' : u._sc]; });
+    await exportSheet(head, rows, 'طلبة حقيبة الحاسوب ' + today(), 'الطلبة', [5, 28, 18, 10, 7, 34, 14, 10, 12]);
   }
   async function exportSheet(head, rows, fn, sheet, widths) {
     try {
@@ -861,9 +865,9 @@
   function pcls(p) { return p == null ? '' : p >= 50 ? 'good' : 'bad'; }
   function resultsHTML(A) {
     if (!A.results) return '<p class="mute" style="margin-top:12px">جارٍ تحميل النتائج…</p>';
-    var rows = resRows(A), ch = S.resCh == null ? 'all' : String(S.resCh);
+    var ch = S.resCh == null ? 'all' : String(S.resCh), allRows = resRows(A), rows = applyF(allRows, ch === 'all' ? null : +ch);
     var top = '<div class="row" style="margin-top:12px;justify-content:space-between;align-items:center"><p class="small mute" style="margin:0">تُسجَّل النتائج من تاريخ إضافة هذه الميزة.</p><div class="row" style="gap:8px"><button class="tab" data-a="resreload">تحديث</button><button class="btn" data-a="resxls"' + (rows.length ? '' : ' disabled') + '>تصدير إلى إكسل</button></div></div>' +
-      '<div class="reschips"><button class="tab" data-a="resch" data-n="all" aria-pressed="' + (ch === 'all') + '">ملخص الكل</button>' + TESTS.map(function (t) { return '<button class="tab" data-a="resch" data-n="' + t[0] + '" aria-pressed="' + (ch === String(t[0])) + '">' + t[1] + '</button>'; }).join('') + '</div>';
+      '<div class="reschips"><button class="tab" data-a="resch" data-n="all" aria-pressed="' + (ch === 'all') + '">ملخص الكل</button>' + TESTS.map(function (t) { return '<button class="tab" data-a="resch" data-n="' + t[0] + '" aria-pressed="' + (ch === String(t[0])) + '">' + t[1] + '</button>'; }).join('') + '</div>' + filterBar(allRows, ch === 'all' ? 'all' : 'ch', rows.length);
     if (ch === 'all') {
       var tested = rows.filter(function (r) { return TESTS.some(function (t) { return r['c' + t[0]]; }); });
       var avgs = TESTS.map(function (t) { var v = rows.filter(function (r) { return r['c' + t[0]]; }).map(function (r) { return +r['b' + t[0]]; }); return [t[1], v.length, v.length ? Math.round(v.reduce(function (a, x) { return a + x; }, 0) / v.length) : null]; });
@@ -873,7 +877,7 @@
         rows.map(function (r, i) { var ds = TESTS.filter(function (t) { return r['c' + t[0]]; }); var av = ds.length ? Math.round(ds.reduce(function (a, t) { return a + +r['b' + t[0]]; }, 0) / ds.length) : null; return '<div class="urow rrow"><span class="un">' + (i + 1) + '</span><b class="unm">' + esc(r.name || '—') + '</b><span class="ugr">' + esc(r.group || '—') + '</span><span class="rdone">' + ds.length + ' من ' + TESTS.length + '</span><span class="ravg">' + (av == null ? '<span class="pill">لم يختبر</span>' : '<span class="pill ' + pcls(av) + '">' + av + '%</span>') + '</span></div>'; }).join('') + '</div></section>';
     }
     var n = +ch, name = TESTS.filter(function (t) { return t[0] === n; })[0][1];
-    var did = rows.filter(function (r) { return r['c' + n]; }).sort(function (a, b) { return (+b['b' + n]) - (+a['b' + n]); }), not = rows.filter(function (r) { return !r['c' + n]; });
+    var did = rows.filter(function (r) { return r['c' + n]; }), not = rows.filter(function (r) { return !r['c' + n]; });
     var avg = did.length ? Math.round(did.reduce(function (a, r) { return a + +r['b' + n]; }, 0) / did.length) : null, pass = did.filter(function (r) { return +r['b' + n] >= 50; }).length;
     return top + '<div class="kpis" style="margin-top:12px"><div class="kpi"><b>' + fmtN(did.length) + '</b><span>اختبروا</span></div><div class="kpi"><b>' + (avg == null ? '—' : avg + '%') + '</b><span>متوسط الصف</span></div><div class="kpi"><b>' + (did.length ? Math.round(pass / did.length * 100) + '%' : '—') + '</b><span>نسبة النجاح</span></div><div class="kpi"><b>' + fmtN(not.length) + '</b><span>لم يختبروا</span></div></div>' +
       '<section class="block"><h3>نتائج ' + name + '<small>' + did.length + '</small></h3>' + (did.length ? '<div class="ulist"><div class="urow rrow2 uhead"><span class="un">ت</span><b class="unm">الاسم</b><span class="ugr">الشعبة</span><span class="rb1">أعلى درجة</span><span class="rl1">آخر درجة</span><span class="rc1">المحاولات</span><span class="rt1">آخر محاولة</span></div>' +
@@ -881,13 +885,75 @@
       (not.length ? '<section class="block"><h3>لم يختبروا بعد<small>' + not.length + '</small></h3><div class="notlist">' + not.map(function (r) { return '<span class="pill">' + esc(r.name || r.email || '—') + '</span>'; }).join('') + '</div></section>' : '');
   }
   async function exportResults() {
-    var rows = resRows(S.A || {});
+    var rows = applyF(resRows(S.A || {}), S.resCh == null || S.resCh === 'all' ? null : +S.resCh);
     var head = ['ت', 'الاسم', 'الشعبة', 'البريد الإلكتروني'];
     TESTS.forEach(function (t) { head.push(t[1] + ' - أعلى درجة %', t[1] + ' - آخر درجة %', t[1] + ' - المحاولات'); });
     var data = rows.map(function (r, i) { var o = [i + 1, r.name || '', r.group || '', r.email || '']; TESTS.forEach(function (t) { var c = r['c' + t[0]]; o.push(c ? +r['b' + t[0]] : '', c ? +r['l' + t[0]] : '', c ? +c : 0); }); return o; });
     await exportSheet(head, data, 'نتائج اختبارات حقيبة الحاسوب ' + today(), 'النتائج', [5, 26, 16, 30]);
   }
-  function loadUsers() { S.A = S.A || {}; DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { toast('تعذر تحميل قائمة الطلبة'); }); DB.banned().then(function (l) { S.A.banned = l; render(); }).catch(function () { S.A.banned = []; }); }
+  /* ---------- الفلترة في لوحة الأدمن ---------- */
+  S.F = { q: '', st: '', sec: '', status: '', act: '', res: '', sort: 'name' };
+  var ARSEC = { 'أ': 'A', 'ا': 'A', 'ب': 'B', 'ج': 'C', 'د': 'D', 'ه': 'E', 'و': 'F' };
+  function study(g) { g = g || ''; return /مسائ/.test(g) ? 'مسائي' : /صباح/.test(g) ? 'صباحي' : ''; }
+  function section(g) {
+    g = (g || '').replace(/[٠-٩]/g, '');
+    var m = g.match(/[A-Fa-f]/); if (m) return m[0].toUpperCase();
+    m = g.match(/شعب[ةه]\s*([أابجدهو])(?![ء-ي])/) || g.match(/(?:^|[\s(،,\-])([أبجده])(?=$|[\s)،,\-])/);
+    return m ? ARSEC[m[1]] : '';
+  }
+  function avgBest(r) { var ds = TESTS.filter(function (t) { return r['c' + t[0]]; }); return ds.length ? Math.round(ds.reduce(function (a, t) { return a + +r['b' + t[0]]; }, 0) / ds.length) : null; }
+  /* n: رقم الاختبار المعروض، أو null لملخص الكل وقائمة الطلبة */
+  function applyF(rows, n) {
+    var F = S.F, q = F.q.trim().toLowerCase();
+    var out = rows.filter(function (r) {
+      if (q && ((r.name || '') + ' ' + (r.email || '')).toLowerCase().indexOf(q) < 0) return false;
+      if (F.st && (study(r.group) || 'none') !== F.st) return false;
+      if (F.sec && (section(r.group) || 'none') !== F.sec) return false;
+      if (F.status === 'active' && r._ban) return false;
+      if (F.status === 'banned' && !r._ban) return false;
+      var sc = n == null ? avgBest(r) : (r['c' + n] ? +r['b' + n] : null);
+      if (F.act === 'yes' && sc == null) return false;
+      if (F.act === 'no' && sc != null) return false;
+      if (F.res === 'pass' && !(sc != null && sc >= 50)) return false;
+      if (F.res === 'fail' && !(sc != null && sc < 50)) return false;
+      if (F.res === 'top' && !(sc != null && sc >= 90)) return false;
+      r._sc = sc; return true;
+    });
+    var by = F.sort;
+    out.sort(function (a, b) {
+      if (by === 'high' || by === 'low') { var x = a._sc == null ? -1 : a._sc, y = b._sc == null ? -1 : b._sc; if (x !== y) return by === 'high' ? y - x : (x < 0 ? 1 : y < 0 ? -1 : x - y); }
+      if (by === 'new' || by === 'old') { var d = String(a.joined || '') < String(b.joined || '') ? -1 : 1; if (a.joined !== b.joined) return by === 'new' ? -d : d; }
+      if (by === 'tries' && n != null) { var c = (+b['c' + n] || 0) - (+a['c' + n] || 0); if (c) return c; }
+      if (by === 'sec') { var s1 = (study(a.group) + section(a.group)) || 'ي', s2 = (study(b.group) + section(b.group)) || 'ي'; if (s1 !== s2) return s1 < s2 ? -1 : 1; }
+      return (a.name || '').localeCompare(b.name || '', 'ar');
+    });
+    return out;
+  }
+  function filterBar(all, kind, shown) {
+    var F = S.F, secs = {}; all.forEach(function (r) { var s = section(r.group); secs[s || 'none'] = 1; });
+    var secList = Object.keys(secs).filter(function (s) { return s !== 'none'; }).sort();
+    function sel(key, label, opts) { return '<label class="fsel"><span>' + label + '</span><select data-f="' + key + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (F[key] === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>'; }
+    var active = F.q || F.st || F.sec || F.status || F.act || F.res;
+    var html = '<div class="fbar"><div class="fsearch"><input id="fq" type="search" placeholder="ابحث بالاسم أو البريد" value="' + esc(F.q) + '" aria-label="بحث"></div><div class="fsels">' +
+      sel('st', 'الدراسة', [['', 'الكل'], ['صباحي', 'صباحي'], ['مسائي', 'مسائي'], ['none', 'غير محددة']]) +
+      sel('sec', 'الشعبة', [['', 'الكل']].concat(secList.map(function (s) { return [s, 'شعبة ' + s]; })).concat(secs.none ? [['none', 'غير محددة']] : [])) +
+      (kind === 'users' ? sel('status', 'الحالة', [['', 'الكل'], ['active', 'فعّال'], ['banned', 'محظور']]) : '') +
+      sel('act', 'الاختبار', [['', 'الكل'], ['yes', 'اختبر'], ['no', 'لم يختبر']]) +
+      sel('res', 'النتيجة', [['', 'الكل'], ['top', 'ممتاز 90% فأعلى'], ['pass', 'ناجح 50% فأعلى'], ['fail', 'راسب أقل من 50%']]) +
+      sel('sort', 'الترتيب', [['name', 'الاسم أبجدياً'], ['high', 'الأعلى درجة'], ['low', 'الأقل درجة'], ['sec', 'الدراسة والشعبة']].concat(kind === 'users' ? [['new', 'الأحدث تسجيلاً'], ['old', 'الأقدم تسجيلاً']] : kind === 'ch' ? [['tries', 'الأكثر محاولات']] : [])) +
+      '</div><div class="fcount"><span>يظهر <b>' + shown + '</b> من ' + all.length + ' طالب</span>' + (active ? '<button class="linkbtn" data-a="fclear">مسح الفلاتر</button>' : '') + '</div></div>';
+    return html;
+  }
+  /* كل الطلبة مع حالة الحظر ونتائجهم، لقائمة الطلبة والتصدير */
+  function studentRows(A) {
+    var bans = A.banned || [], banIds = {}; bans.forEach(function (x) { banIds[x.id] = 1; });
+    var res = {}; (A.results || []).forEach(function (r) { res[r.id] = r; });
+    var us = (A.users || []).filter(function (u) { return (u.email || '').toLowerCase() !== ADMIN; });
+    var rows = us.map(function (u) { return Object.assign({}, res[u.id] || {}, u, { _ban: !!banIds[u.id] }); });
+    bans.forEach(function (x) { if (!us.some(function (u) { return u.id === x.id; })) rows.push(Object.assign({}, res[x.id] || {}, x, { _ban: true, _gone: true })); });
+    return rows;
+  }
+  function loadUsers() { S.A = S.A || {}; DB.results().then(function (l) { S.A.results = l; render(); }).catch(function () { }); DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { toast('تعذر تحميل قائمة الطلبة'); }); DB.banned().then(function (l) { S.A.banned = l; render(); }).catch(function () { S.A.banned = []; }); }
 
   /* ---------- التشغيل ---------- */
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__bip = e; });
