@@ -559,3 +559,18 @@ b,strong{color:var(--bold)}
 .rrow2{grid-template-columns:36px minmax(0,1.4fr) minmax(0,1fr) 90px 80px 70px 100px auto}
 .rrow2.uhead::after{content:""}
 @media (max-width:720px){.rrow2{grid-template-areas:"n m b" "n g g" "n x x" "n r r"}.rrow2 .rreset{grid-area:r;justify-self:start}}
+
+/* بطاقة الفيديو التعليمي في شاشة الدخول */
+.vidcard{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--onbtn);background:var(--btn);border-radius:16px;padding:14px 16px;box-shadow:0 10px 26px -12px rgba(0,0,0,.45);position:relative;overflow:hidden;transition:transform .2s}
+.vidcard:hover{transform:translateY(-2px)}
+.vidcard:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.vidcard::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);background-size:300% 100%;animation:vshine 3.5s ease-in-out infinite}
+@keyframes vshine{0%,60%{background-position:120% 0}100%{background-position:-60% 0}}
+.vplay{flex:none;width:56px;height:56px;border-radius:50%;background:var(--onbtn);color:var(--btn);display:grid;place-items:center;animation:vpulse 2s ease-out infinite}
+.vplay svg{margin-left:4px}
+@keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}100%{box-shadow:0 0 0 16px rgba(255,255,255,0)}}
+.vtx{display:grid;gap:2px;flex:1;min-width:0}
+.vtx b{color:inherit;font-size:1.08rem}
+.vtx span{font-size:.88rem;opacity:.9;line-height:1.5}
+.vyt{flex:none;font-size:.72rem;font-weight:700;border:1.5px solid currentColor;border-radius:8px;padding:2px 8px;opacity:.85}
+@media (prefers-reduced-motion:reduce){.vidcard::after,.vplay{animation:none}}
