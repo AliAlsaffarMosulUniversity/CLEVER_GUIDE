@@ -598,11 +598,56 @@
       h = v === 'chapter' ? vChapter() : v === 'quiz' ? vQuiz() : v === 'cards' ? vCards() : v === 'tests' ? vTests() : v === 'tools' ? vTools() : v === 'tool' ? vTool() : v === 'hw' ? vHw() : v === 'admin' ? vAdmin() : vHome();
       h += navbar();
     }
+    var keep = Array.prototype.map.call(document.querySelectorAll('#app .hs-in'), function (x) { return x.scrollLeft; });
     $('#app').innerHTML = h + sheetHTML();
+    enhanceScrollers(keep);
     if (v === 'tool' && S.tool === 'prompt') updPrompt();
     if (v === 'tool' && S.tool === 'pass') updPass('');
     if (v === 'chapter' && S.tab === 'sum') observeRead();
   }
+  /* الصفوف التي تتحرك أفقياً: أسهم على الجانبين وعجلة الفأرة ومفاتيح الأسهم، لمن لا يملك شاشة لمس */
+  function enhanceScrollers(keep) {
+    var list = document.querySelectorAll('#app .tabs, #app .reschips');
+    Array.prototype.forEach.call(list, function (el, i) {
+      if (el.parentNode.classList.contains('hs')) return;
+      var w = document.createElement('div'); w.className = 'hs';
+      var mt = getComputedStyle(el).marginTop; w.style.marginTop = mt; el.style.marginTop = '0';
+      el.parentNode.insertBefore(w, el); w.appendChild(el); el.classList.add('hs-in');
+      var r = document.createElement('button'), l = document.createElement('button');
+      r.type = l.type = 'button'; r.className = 'hsb r'; l.className = 'hsb l';
+      r.setAttribute('aria-label', 'الخيارات السابقة'); l.setAttribute('aria-label', 'الخيارات التالية');
+      r.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      l.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      w.appendChild(r); w.appendChild(l);
+      function step() { return Math.max(120, el.clientWidth * 0.7); }
+      r.addEventListener('click', function (e) { e.stopPropagation(); el.scrollBy({ left: step(), behavior: 'smooth' }); });
+      l.addEventListener('click', function (e) { e.stopPropagation(); el.scrollBy({ left: -step(), behavior: 'smooth' }); });
+      function upd() {
+        var max = el.scrollWidth - el.clientWidth, pos = Math.abs(el.scrollLeft), ov = max > 4;
+        w.classList.toggle('ov', ov);
+        r.hidden = !ov || pos < 4; l.hidden = !ov || pos > max - 4;
+      }
+      el.addEventListener('scroll', upd, { passive: true });
+      el.addEventListener('wheel', function (e) {
+        if (el.scrollWidth - el.clientWidth < 5 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+        var max = el.scrollWidth - el.clientWidth, pos = Math.abs(el.scrollLeft);
+        if ((e.deltaY > 0 && pos >= max - 2) || (e.deltaY < 0 && pos <= 2)) return;
+        e.preventDefault(); el.scrollBy({ left: -e.deltaY });
+      }, { passive: false });
+      el.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        var bs = Array.prototype.slice.call(el.querySelectorAll('button')), k = bs.indexOf(document.activeElement); if (k < 0) return;
+        var n = bs[k + (e.key === 'ArrowLeft' ? 1 : -1)]; if (n) { e.preventDefault(); n.focus(); n.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+      });
+      upd();
+      if (keep && keep[i] != null) el.scrollLeft = keep[i];
+      var act = el.querySelector('[aria-pressed="true"]');
+      if (act) { var a = act.getBoundingClientRect(), b = el.getBoundingClientRect(); if (a.left < b.left + 40 || a.right > b.right - 40) el.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2); }
+      upd(); setTimeout(upd, 300);
+    });
+  }
+  window.addEventListener('resize', function () { Array.prototype.forEach.call(document.querySelectorAll('.hs-in'), function (el) { el.dispatchEvent(new Event('scroll')); }); });
+
   var io;
   function observeRead() {
     if (io) io.disconnect(); if (!('IntersectionObserver' in window)) return;
