@@ -119,7 +119,12 @@
     delQ: function (id) { return fs('DELETE', '/comments/' + id); },
     rate: async function (r, note) { var f = {}; f['r' + r] = 1; await incr(f); if (note) await fs('POST', '/fbnotes', encF({ text: note, ts: new Date() })); },
     ratings: async function () { var d = await fs('GET', '/fbnotes?pageSize=500'); return ((d && d.documents) || []).map(decD); },
-    rateSeen: function () { return fs('PATCH', '/users/' + AUTH.uid + '?updateMask.fieldPaths=fbSeen', encF({ fbSeen: true })); }
+    rateSeen: function () { return fs('PATCH', '/users/' + AUTH.uid + '?updateMask.fieldPaths=fbSeen', encF({ fbSeen: true })); },
+    banned: async function () { var d = await fs('GET', '/banned?pageSize=500'); return ((d && d.documents) || []).map(decD); },
+    amBanned: async function () { return !!(await fs('GET', '/banned/' + AUTH.uid)); },
+    ban: function (u) { return fs('PATCH', '/banned/' + u.id, encF({ name: u.name || '', email: u.email || '', group: u.group || '', ts: new Date() })); },
+    unban: function (uid) { return fs('DELETE', '/banned/' + uid); },
+    delUser: async function (uid) { await fs('DELETE', '/users/' + uid); await incr({ users: -1 }); }
   } : (function () {
     /* وضع المعاينة: كل شيء محفوظ على هذا الجهاز فقط */
     var D = lsGet('demo', null) || { stats: { visits: 0, users: 1 }, hw: [], ann: null, qs: [], users: [] };
@@ -130,7 +135,7 @@
       stats: async function () { return D.stats; },
       quiz: async function (n, p) { D.stats['a' + n] = (D.stats['a' + n] || 0) + 1; D.stats['p' + n] = (D.stats['p' + n] || 0) + (p ? 1 : 0); sv(); },
       profile: async function () { return lsGet('demoprof', null); },
-      saveProfile: async function (p) { lsSet('demoprof', p); D.users.push({ id: id(), name: p.name, group: p.group, email: AUTH.email, joined: new Date().toISOString() }); sv(); },
+      saveProfile: async function (p) { lsSet('demoprof', p); D.users = D.users.filter(function (u) { return u.id !== AUTH.uid; }); D.users.push({ id: AUTH.uid, name: p.name, group: p.group, email: AUTH.email, joined: new Date().toISOString() }); sv(); },
       users: async function () { return D.users; },
       homework: async function () { return D.hw; },
       addHw: async function (h) { D.hw.push(Object.assign({ id: id(), created: new Date().toISOString() }, h, { ch: +h.ch || 0 })); sv(); },
@@ -144,6 +149,11 @@
       delQ: async function (i) { D.qs = D.qs.filter(function (q) { return q.id !== i; }); sv(); },
       rate: async function (r, note) { D.stats['r' + r] = (D.stats['r' + r] || 0) + 1; if (note) (D.notes = D.notes || []).push({ id: id(), text: note, ts: new Date().toISOString() }); sv(); },
       ratings: async function () { return D.notes || []; },
+      banned: async function () { return D.banned || []; },
+      amBanned: async function () { return (D.banned || []).some(function (b) { return b.id === AUTH.uid; }); },
+      ban: async function (u) { (D.banned = D.banned || []).push({ id: u.id, name: u.name, email: u.email, group: u.group, ts: new Date().toISOString() }); sv(); },
+      unban: async function (uid) { D.banned = (D.banned || []).filter(function (b) { return b.id !== uid; }); sv(); },
+      delUser: async function (uid) { D.users = D.users.filter(function (u) { return u.id !== uid; }); sv(); },
       rateSeen: async function () { var pf = lsGet('demoprof', null); if (pf) { pf.fbSeen = true; lsSet('demoprof', pf); } }
     };
   })();
@@ -491,8 +501,13 @@
         '<section class="block"><h3>توزيع الآراء</h3><div class="ratebars">' + RATES.map(function (r, i) { var c = cnt[i], pc = tot ? Math.round(c / tot * 100) : 0; return '<div class="rb"><span>' + r[1] + '</span><div class="bar"><i style="width:' + pc + '%"></i></div><b>' + fmtN(c) + ' · ' + pc + '%</b></div>'; }).join('') + '</div></section>' +
         '<section class="block"><h3>ملاحظات الطلبة<small>' + notes.length + '</small></h3>' + (!A.rates ? '<p class="mute">جارٍ التحميل…</p>' : notes.length ? notes.map(function (n) { return '<div class="cm"><div class="meta"><span>' + fmtDate(n.ts) + '</span></div><p>' + esc(n.text) + '</p></div>'; }).join('') : '<p class="mute">لا توجد ملاحظات بعد.</p>') + '</section>';
     } else if (S.adminTab === 'users') {
-      var us = (A.users || []).slice().sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
-      b = '<p class="small mute" style="margin-top:12px">الطلبة المسجلون في التطبيق: ' + us.length + '</p><div class="tblwrap" style="margin-top:8px"><table><thead><tr><th>الاسم</th><th>الشعبة</th><th>البريد</th></tr></thead><tbody>' + us.map(function (u) { return '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.group || '') + '</td><td><span class="ltr">' + esc(u.email) + '</span></td></tr>'; }).join('') + '</tbody></table></div>';
+      var bans = A.banned || [], banIds = {}; bans.forEach(function (x) { banIds[x.id] = 1; });
+      var us = (A.users || []).filter(function (u) { return (u.email || '').toLowerCase() !== ADMIN; }).sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
+      var onlyBanned = bans.filter(function (x) { return !us.some(function (u) { return u.id === x.id; }); });
+      function urow(u, isB) { return '<tr' + (isB ? ' class="banrow"' : '') + '><td>' + esc(u.name || '—') + (isB ? ' <span class="pill bad">محظور</span>' : '') + '</td><td>' + esc(u.group || '') + '</td><td><span class="ltr">' + esc(u.email || '') + '</span></td><td><div class="uact">' + (isB ? '<button class="btn ghost sm" data-a="unban" data-id="' + u.id + '">إلغاء الحظر</button>' : '<button class="btn danger sm" data-a="ban" data-id="' + u.id + '">حظر</button>') + (u.joined !== undefined || !isB ? '<button class="btn danger sm" data-a="udel" data-id="' + u.id + '">حذف</button>' : '') + '</div></td></tr>'; }
+      b = '<div class="row" style="margin-top:12px;justify-content:space-between;align-items:center"><p class="small mute" style="margin:0">الطلبة المسجلون في التطبيق: ' + us.length + (bans.length ? ' · المحظورون: ' + bans.length : '') + '</p><button class="btn" data-a="xls"' + (us.length || bans.length ? '' : ' disabled') + '>تصدير إلى إكسل</button></div>' +
+        '<div class="tipbox small" style="margin-top:8px"><b>حظر:</b> يمنع الطالب من استخدام التطبيق، ويمكنك إلغاؤه لاحقاً. <b>حذف:</b> يمسح بيانات الطالب من القائمة، لكنه يستطيع الدخول من جديد ما لم تحظره.</div>' +
+        '<div class="tblwrap" style="margin-top:8px"><table><thead><tr><th>الاسم</th><th>الشعبة</th><th>البريد</th><th>إجراء</th></tr></thead><tbody>' + us.map(function (u) { return urow(u, !!banIds[u.id]); }).join('') + onlyBanned.map(function (u) { return urow(u, true); }).join('') + '</tbody></table></div>';
     } else if (S.adminTab === 'stats') {
       var st = S.stats || {};
       b = '<div class="kpis" style="margin-top:12px"><div class="kpi"><b>' + fmtN(st.users) + '</b><span>مستخدمو التطبيق</span></div><div class="kpi"><b>' + fmtN(st.visits) + '</b><span>مرات الفتح</span></div><div class="kpi"><b>' + fmtN((A.qs || []).length) + '</b><span>تعليقات الطلبة</span></div><div class="kpi"><b>' + fmtN(st.a0) + '</b><span>محاولات الامتحان الشامل</span></div></div>' +
@@ -502,7 +517,7 @@
     }
     return topbar('لوحة الأدمن', true) + '<main class="wrap"><div class="admin-head"><b>أدمن التطبيق</b><span class="ltr">' + esc(AUTH.email) + '</span>' + (!LIVE ? '<p class="small" style="margin-top:4px">وضع المعاينة: البيانات محفوظة على هذا الجهاز فقط حتى يُربط التطبيق بقاعدة البيانات.</p>' : '') + '</div><div class="tabs">' + tabs.map(function (t) { return '<button class="tab" data-a="atab" data-t="' + t[0] + '" aria-pressed="' + (S.adminTab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' + b + '</main>';
   }
-  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    match /stats/main { allow read, create, update: if signed(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow create, update: if signed() && request.auth.uid == uid;\n    }\n    match /homework/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if signed()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (signed() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n    match /fbnotes/{id} {\n      allow create: if signed()\n        && request.resource.data.keys().hasOnly(['text', 'ts'])\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 500;\n      allow read, delete: if isAdmin();\n    }\n  }\n}";
+  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    function active() {\n      return signed()\n        && !exists(/databases/$(database)/documents/banned/$(request.auth.uid));\n    }\n    match /stats/main { allow read, create, update: if active(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (active() && request.auth.uid == uid);\n      allow create, update: if active() && request.auth.uid == uid;\n      allow delete: if isAdmin();\n    }\n    match /banned/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow write: if isAdmin();\n    }\n    match /homework/{id} { allow read: if active(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if active(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if active()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (active() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n    match /fbnotes/{id} {\n      allow create: if active()\n        && request.resource.data.keys().hasOnly(['text', 'ts'])\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 500;\n      allow read, delete: if isAdmin();\n    }\n  }\n}";
   function setupHTML() {
     return '<div class="card" style="margin-top:12px;display:grid;gap:10px"><b>' + (LIVE ? 'التطبيق مربوط بقاعدة البيانات' : 'ربط التطبيق بقاعدة البيانات') + '</b><ol class="steps">' +
       ['افتح موقع Firebase وأنشئ مشروعاً مجانياً', 'من قسم Firestore Database أنشئ قاعدة بيانات', 'من تبويب Rules الصق القواعد أدناه واضغط Publish', 'من قسم Authentication فعّل طريقة Email/Password وخيار Email link', 'من Authentication ثم Settings ثم Authorized domains أضف نطاق موقع التطبيق', 'من إعدادات المشروع انسخ apiKey و projectId إلى ملف config.js'].map(function (s) { return '<li>' + s + '</li>'; }).join('') +
@@ -513,7 +528,9 @@
   function vGate() {
     var G = S.gate || {};
     var b;
-    if (!LIVE) {
+    if (G.banned) {
+      b = '<div class="fb no"><b>تم إيقاف حسابك</b>لا يمكنك استخدام التطبيق بهذا الحساب. راجع أستاذ المادة.</div><button class="btn ghost wide" data-a="logout">تسجيل الخروج</button>';
+    } else if (!LIVE) {
       b = '<div class="tipbox">وضع المعاينة. الدخول بالبريد الإلكتروني يعمل بعد ربط التطبيق بقاعدة البيانات، والبيانات هنا تحفظ على هذا الجهاز فقط.</div><div class="form"><div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" type="email" dir="ltr" value="' + esc(G.email || '') + '" placeholder="name@gmail.com"></div><button class="btn wide" data-a="demologin">دخول المعاينة</button></div>';
     } else if (G.needEmail) {
       b = '<p>أكّد بريدك الإلكتروني لإكمال الدخول من هذا الجهاز.</p><div class="form"><div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" type="email" dir="ltr" placeholder="name@gmail.com"></div><button class="btn wide" data-a="confirmemail">إكمال الدخول</button></div>';
@@ -633,9 +650,21 @@
       case 'gateback': S.gate = { email: (S.gate || {}).email }; render(); break;
       case 'confirmemail': var em = ($('#gemail').value || '').trim().toLowerCase(); await completeLink(em); break;
       case 'demologin': var de = ($('#gemail').value || '').trim().toLowerCase(); if (!DOMAIN.test(de)) { S.gate = { email: de, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; } setAuth({ email: de, uid: 'demo-' + de, exp: 9e15 }); await afterLogin(); break;
-      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users' && !(S.A && S.A.users)) loadUsers(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
+      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users') loadUsers(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
       case 'rreload': S.A.rates = null; render(); loadRates(); DB.stats().then(function (x) { S.stats = x; render(); }).catch(function () { }); break;
       case 'qf': S.qFilter = d.f; render(); break;
+      case 'xls': exportStudents(); break;
+      case 'ban': case 'udel': case 'unban': {
+        if (a !== 'unban' && !el.dataset.sure) { el.dataset.sure = 1; el.textContent = 'تأكيد؟'; return; }
+        var uu = (S.A.users || []).concat(S.A.banned || []).filter(function (x) { return x.id === d.id; })[0] || { id: d.id };
+        try {
+          if (a === 'ban') { await DB.ban(uu); S.A.banned = (S.A.banned || []).concat([{ id: uu.id, name: uu.name, email: uu.email, group: uu.group }]); toast('حُظر الطالب'); }
+          else if (a === 'unban') { await DB.unban(d.id); S.A.banned = (S.A.banned || []).filter(function (x) { return x.id !== d.id; }); toast('أُلغي الحظر'); }
+          else { await DB.delUser(d.id); S.A.users = (S.A.users || []).filter(function (x) { return x.id !== d.id; }); toast('حُذف الطالب من القائمة'); }
+          render();
+        } catch (e) { toast('تعذر التنفيذ. تأكد من نشر القواعد الجديدة.'); }
+        break;
+      }
       case 'areload': loadAdmin(); break;
       case 'qdone': case 'qopen': try { await DB.setQ(d.id, a === 'qdone' ? 'done' : 'open'); (S.A.qs || []).forEach(function (q) { if (q.id === d.id) q.status = a === 'qdone' ? 'done' : 'open'; }); render(); } catch (e) { toast('تعذر الحفظ'); } break;
       case 'qdel': if (!el.dataset.sure) { el.dataset.sure = 1; el.textContent = 'اضغط مرة ثانية للتأكيد'; return; } try { await DB.delQ(d.id); S.A.qs = S.A.qs.filter(function (q) { return q.id !== d.id; }); render(); } catch (e) { toast('تعذر الحذف'); } break;
@@ -706,6 +735,7 @@
   }
   async function afterLogin() {
     if (!DOMAIN.test((AUTH && AUTH.email) || '')) { setAuth(null); S.view = 'gate'; S.gate = { err: 'اكتب بريداً إلكترونياً صحيحاً' }; render(); return; }
+    if (!isAdmin()) { var bnd = false; try { bnd = await DB.amBanned(); } catch (e) { } if (bnd) { lsSet('prof', undefined); S.view = 'gate'; S.gate = { banned: true }; render(); return; } }
     try { S.profile = await DB.profile(); } catch (e) { S.profile = lsGet('prof', null); }
     if (!S.profile) { S.view = 'profile'; render(); return; }
     lsSet('prof', S.profile);
@@ -724,7 +754,31 @@
     DB.stats().then(function (s) { S.stats = s; }).catch(function () { });
   }
   function loadRates() { S.A = S.A || {}; DB.ratings().then(function (l) { S.A.rates = l; render(); }).catch(function () { S.A.rates = []; render(); toast('تعذر تحميل الآراء. تأكد من نشر القواعد الجديدة.'); }); }
-  function loadUsers() { DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { toast('تعذر تحميل قائمة الطلبة'); }); }
+  /* تصدير قائمة الطلبة إلى ملف إكسل */
+  function loadScript(src) { return new Promise(function (ok, no) { var x = document.createElement('script'); x.src = src; x.onload = ok; x.onerror = no; document.head.appendChild(x); }); }
+  function saveBlob(bl, name) { var a = document.createElement('a'), u = URL.createObjectURL(bl); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 4000); }
+  async function exportStudents() {
+    var A = S.A || {}, banIds = {}; (A.banned || []).forEach(function (x) { banIds[x.id] = 1; });
+    var us = (A.users || []).filter(function (u) { return (u.email || '').toLowerCase() !== ADMIN; }).sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
+    (A.banned || []).forEach(function (x) { if (!us.some(function (u) { return u.id === x.id; })) us.push(x); });
+    var head = ['ت', 'الاسم', 'الشعبة', 'البريد الإلكتروني', 'تاريخ التسجيل', 'الحالة'];
+    var rows = us.map(function (u, i) { return [i + 1, u.name || '', u.group || '', u.email || '', u.joined ? String(u.joined).slice(0, 10) : '', banIds[u.id] ? 'محظور' : 'فعّال']; });
+    var fn = 'طلبة حقيبة الحاسوب ' + today();
+    try {
+      if (!window.XLSX) { toast('جارٍ تجهيز الملف…'); await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); }
+      var ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
+      ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 18 }, { wch: 34 }, { wch: 14 }, { wch: 10 }];
+      var wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: true }] };
+      XLSX.utils.book_append_sheet(wb, ws, 'الطلبة');
+      saveBlob(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fn + '.xlsx');
+    } catch (e) {
+      /* بديل: ملف CSV يفتحه إكسل مباشرة */
+      var csv = '\ufeff' + [head].concat(rows).map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+      saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), fn + '.csv');
+    }
+    toast('نُزّل ملف الطلبة');
+  }
+  function loadUsers() { S.A = S.A || {}; DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { toast('تعذر تحميل قائمة الطلبة'); }); DB.banned().then(function (l) { S.A.banned = l; render(); }).catch(function () { S.A.banned = []; }); }
 
   /* ---------- التشغيل ---------- */
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__bip = e; });
