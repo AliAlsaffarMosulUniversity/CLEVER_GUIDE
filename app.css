@@ -533,3 +533,23 @@ b,strong{color:var(--bold)}
 .fcount{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.9rem}
 .fcount b{color:var(--acc)}
 .fsel{min-width:0}.fsel select{width:100%;min-width:0;max-width:100%;text-overflow:ellipsis}
+
+/* قفل الاختبارات */
+.chcard.locked{opacity:.62}
+.pill.lockpill{display:inline-flex;align-items:center;gap:4px}
+.pill.lockpill svg{width:14px;height:14px}
+.lockbox{display:flex;gap:10px;align-items:flex-start;background:var(--surf2);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:.95rem}
+.lockbox svg{flex:none;margin-top:4px;color:var(--acc)}
+.lockbox.inv{background:transparent;border-color:currentColor;color:inherit}
+.lockbox.inv svg{color:inherit}
+.locklist{display:grid;gap:8px;margin-top:12px}
+.lockrow{display:grid;grid-template-columns:1fr auto 58px;gap:12px;align-items:center;width:100%;text-align:start;background:var(--surf);border:2px solid var(--line);border-radius:12px;padding:12px 14px;min-height:56px;cursor:pointer;color:var(--ink);font:inherit}
+.lockrow .lt{font-weight:600}
+.lockrow .ls{font-size:.85rem;font-weight:700;color:var(--bad)}
+.lockrow.on{border-color:var(--acc)}
+.lockrow.on .ls{color:var(--good)}
+.lockrow .sw{width:48px;height:28px;border-radius:14px;background:var(--line);position:relative;transition:background .2s}
+.lockrow .sw i{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:right .2s}
+.lockrow.on .sw{background:var(--good)}
+.lockrow.on .sw i{right:23px}
+.card[style*="var(--ink)"] b{color:inherit}

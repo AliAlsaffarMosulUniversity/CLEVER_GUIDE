@@ -120,6 +120,8 @@
     rate: async function (r, note) { var f = {}; f['r' + r] = 1; await incr(f); if (note) await fs('POST', '/fbnotes', encF({ text: note, ts: new Date() })); },
     ratings: async function () { var d = await fs('GET', '/fbnotes?pageSize=500'); return ((d && d.documents) || []).map(decD); },
     rateSeen: function () { return fs('PATCH', '/users/' + AUTH.uid + '?updateMask.fieldPaths=fbSeen', encF({ fbSeen: true })); },
+    testsCfg: async function () { var d = await fs('GET', '/config/tests'); var o = d ? decD(d) : null; return o && typeof o.open === 'string' ? o.open : null; },
+    setTestsCfg: function (open) { return fs('PATCH', '/config/tests', encF({ open: open, ts: new Date() })); },
     myResults: async function () { var d = await fs('GET', '/results/' + AUTH.uid); return d ? decD(d) : {}; },
     saveResult: function (f) { var q = Object.keys(f).map(function (k) { return 'updateMask.fieldPaths=' + k; }).join('&'); return fs('PATCH', '/results/' + AUTH.uid + '?' + q, encF(f)); },
     results: async function () { var d = await fs('GET', '/results?pageSize=500'); return ((d && d.documents) || []).map(decD); },
@@ -152,6 +154,8 @@
       delQ: async function (i) { D.qs = D.qs.filter(function (q) { return q.id !== i; }); sv(); },
       rate: async function (r, note) { D.stats['r' + r] = (D.stats['r' + r] || 0) + 1; if (note) (D.notes = D.notes || []).push({ id: id(), text: note, ts: new Date().toISOString() }); sv(); },
       ratings: async function () { return D.notes || []; },
+      testsCfg: async function () { return D.tests == null ? null : D.tests; },
+      setTestsCfg: async function (open) { D.tests = open; sv(); },
       myResults: async function () { return ((D.res || {})[AUTH.uid]) || {}; },
       saveResult: async function (f) { D.res = D.res || {}; var o = {}; for (var k in f) o[k] = f[k] instanceof Date ? f[k].toISOString() : f[k]; D.res[AUTH.uid] = Object.assign({ id: AUTH.uid }, D.res[AUTH.uid] || {}, o); sv(); },
       results: async function () { return Object.keys(D.res || {}).map(function (k) { return D.res[k]; }); },
@@ -281,7 +285,7 @@
     }
   }
   async function pollNotifs() {
-    maybeAskRating();
+    maybeAskRating(); if (AUTH) loadTestsCfg();
     if (!AUTH || document.hidden) return;
     try { S.hw = await DB.homework(); } catch (e) { }
     try { S.ann = await DB.announce(); } catch (e) { }
@@ -339,7 +343,7 @@
       body = '<div class="tblwrap" style="margin-top:14px"><table><thead><tr><th>المصطلح</th><th>معناه</th></tr></thead><tbody>' + c.terms.map(function (t) { return '<tr><td>' + esc(t[0]) + '<span class="ltr">' + esc(t[1]) + '</span></td><td>' + esc(t[2]) + '</td></tr>'; }).join('') + '</tbody></table></div><div style="margin-top:12px"><button class="btn ink wide" data-a="cardsch" data-ch="' + c.n + '">راجعها ببطاقات قلّابة</button></div>';
     } else if (S.tab === 'quiz') {
       var b = P.best[c.n];
-      body = '<div class="card" style="margin-top:14px;display:grid;gap:10px"><b>اختبار الفصل ' + c.n + '</b><p class="mute small">' + c.mcq.length + ' سؤال اختيار من متعدد و ' + c.tf.length + ' عبارات صح أو خطأ، مع شرح لكل إجابة.</p>' + (b != null ? '<p class="small">أفضل نتيجة لك: <b>' + b + '%</b></p>' : '') + '<button class="btn wide" data-a="startq" data-ch="' + c.n + '">ابدأ الاختبار</button></div>';
+      body = '<div class="card" style="margin-top:14px;display:grid;gap:10px"><b>اختبار الفصل ' + c.n + '</b><p class="mute small">' + c.mcq.length + ' سؤال اختيار من متعدد و ' + c.tf.length + ' عبارات صح أو خطأ، مع شرح لكل إجابة.</p>' + (b != null ? '<p class="small">أفضل نتيجة لك: <b>' + b + '%</b></p>' : '') + (isOpen(c.n) ? '<button class="btn wide" data-a="startq" data-ch="' + c.n + '">ابدأ الاختبار</button>' : '<div class="lockbox">' + LOCK + '<span>هذا الاختبار مقفل حالياً، وسيفتحه الأستاذ لاحقاً. يمكنك مراجعة الملخص والمصطلحات الآن.</span></div>') + '</div>';
     } else {
       body = '<div class="qa" style="margin-top:12px">' + c.qa.map(function (q) { return '<details><summary>' + esc(q[0]) + '</summary><p>' + esc(q[1]) + '</p></details>'; }).join('') + '</div><p class="small mute" style="margin-top:10px">حاول الإجابة بنفسك أولاً، ثم افتح السؤال لترى الإجابة النموذجية.</p>';
     }
@@ -369,6 +373,13 @@
   }
 
   /* الاختبارات */
+  /* قفل الاختبارات: الأستاذ يحدد المفتوح منها. الافتراضي: الفصل الأول فقط */
+  var OPEN_DEFAULT = '1';
+  S.openTests = lsGet('opentests', OPEN_DEFAULT);
+  function isOpen(n) { if (isAdmin()) return true; return (',' + (S.openTests || '') + ',').indexOf(',' + n + ',') >= 0; }
+  function lockedMsg() { toast('هذا الاختبار مقفل حالياً، وسيفتحه الأستاذ لاحقاً'); }
+  var LOCK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  function loadTestsCfg() { DB.testsCfg().then(function (o) { var v = o == null ? OPEN_DEFAULT : o; if (v !== S.openTests) { S.openTests = v; lsSet('opentests', v); if (/tests|chapter/.test(S.view) || S.adminTab === 'lock') render(); } }).catch(function () { }); }
   function buildQuiz(items, title, n) { S.quiz = { title: title, n: n, items: items, i: 0, picked: null, score: 0, wrong: [] }; go('quiz'); }
   function mk(c) { return c.mcq.map(function (q) { var ord = shuffle(q[1].map(function (_, i) { return i; })); return { q: q[0], o: ord.map(function (i) { return q[1][i]; }), a: ord.indexOf(q[2]), e: q[3], ch: c.n }; }).concat(c.tf.map(function (t) { return { q: t[0], o: ['صح', 'خطأ'], a: t[1] ? 0 : 1, e: t[2], ch: c.n, tf: 1 }; })); }
   function vQuiz() {
@@ -389,9 +400,9 @@
     return topbar(Q.title, true) + '<main class="wrap"><div class="qwrap"><div class="qtop"><span>السؤال ' + (Q.i + 1) + ' من ' + Q.items.length + '</span><span>' + (it.tf ? 'صح أم خطأ' : 'اختيار من متعدد') + (it.ch ? ' · الفصل ' + it.ch : '') + '</span></div><div class="qbar"><i style="width:' + (Q.i / Q.items.length * 100) + '%"></i></div><p class="qtext">' + esc(it.q) + '</p><div class="opts">' + opts + '</div>' + fb + '</div></main>';
   }
   function vTests() {
-    return topbar('الاختبارات') + '<main class="wrap"><div class="tipbox small" style="margin-top:12px">تصل نتائج اختبارات الفصول والامتحان الشامل إلى الأستاذ مع اسمك. الاختبار السريع للتدريب فقط ولا يُرسل.</div><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem">الامتحان الشامل</b><p class="small" style="opacity:.85">20 سؤال اختيار من متعدد و 10 عبارات صح أو خطأ من الفصول العشرة، على غرار الامتحان النهائي.</p>' + (P.best[0] != null ? '<p class="small">أفضل نتيجة: <b>' + P.best[0] + '%</b></p>' : '') + '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button></div></section>' +
-      '<section class="block"><div class="row"><button class="btn ghost wide" data-a="quick">اختبار سريع: 10 أسئلة عشوائية</button></div></section>' +
-      '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = P.best[c.n]; return '<button class="chcard ' + c.unit + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
+    return topbar('الاختبارات') + '<main class="wrap"><div class="tipbox small" style="margin-top:12px">تصل نتائج اختبارات الفصول والامتحان الشامل إلى الأستاذ مع اسمك. الاختبار السريع للتدريب فقط ولا يُرسل.</div><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem;color:inherit">الامتحان الشامل</b><p class="small" style="opacity:.85">20 سؤال اختيار من متعدد و 10 عبارات صح أو خطأ من الفصول العشرة، على غرار الامتحان النهائي.</p>' + (P.best[0] != null ? '<p class="small">أفضل نتيجة: <b>' + P.best[0] + '%</b></p>' : '') + (isOpen(0) ? '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button>' : '<div class="lockbox inv">' + LOCK + '<span>مقفل حالياً، وسيفتحه الأستاذ لاحقاً.</span></div>') + '</div></section>' +
+      '<section class="block"><div class="row"><button class="btn ghost wide" data-a="quick">اختبار سريع: 10 أسئلة عشوائية' + (CH.some(function (c) { return !isOpen(c.n); }) ? ' من الفصول المفتوحة' : '') + '</button></div></section>' +
+      '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = P.best[c.n]; return '<button class="chcard ' + c.unit + (isOpen(c.n) ? '' : ' locked') + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (!isOpen(c.n) ? '<span class="pill lockpill">' + LOCK + 'مقفل</span>' : b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
   }
 
   /* البطاقات */
@@ -486,7 +497,7 @@
   /* لوحة الأدمن */
   function vAdmin() {
     if (!isAdmin()) return topbar('لوحة الأدمن', true) + '<main class="wrap"><div class="card empty" style="margin-top:14px">هذه الصفحة لأدمن التطبيق فقط.</div></main>';
-    var tabs = [['qs', 'تعليقات الطلبة'], ['hw', 'الواجبات'], ['ann', 'الإعلان'], ['res', 'نتائج الاختبارات'], ['rate', 'آراء الطلبة'], ['users', 'الطلبة'], ['stats', 'الإحصاءات'], ['setup', 'الإعداد']];
+    var tabs = [['qs', 'تعليقات الطلبة'], ['hw', 'الواجبات'], ['ann', 'الإعلان'], ['res', 'نتائج الاختبارات'], ['lock', 'فتح الاختبارات'], ['rate', 'آراء الطلبة'], ['users', 'الطلبة'], ['stats', 'الإحصاءات'], ['setup', 'الإعداد']];
     var A = S.A || {}, b = '';
     if (S.adminTab === 'qs') {
       var all = (A.qs || []).filter(function (q) { return S.qFilter === 'all' || q.status !== 'done'; });
@@ -499,6 +510,11 @@
         '<section class="block"><h3>الواجبات المنشورة<small>' + S.hw.length + '</small></h3>' + (S.hw.length ? S.hw.map(function (h) { return '<div class="hw"><div class="h"><b>' + esc(h.title) + '</b><span class="pill">' + (h.due ? esc(h.due) : 'بلا موعد') + '</span></div>' + (h.details ? '<p>' + esc(h.details) + '</p>' : '') + '<div class="row"><button class="btn danger" data-a="hwdel" data-id="' + h.id + '">حذف الواجب</button></div></div>'; }).join('') : '<p class="mute">لا توجد واجبات.</p>') + '</section>';
     } else if (S.adminTab === 'ann') {
       b = '<form class="form card" style="margin-top:12px" data-form="ann"><b>إعلان يظهر أعلى الصفحة الرئيسية لكل الطلبة</b><div class="field"><label for="annt">نص الإعلان</label><textarea id="annt" name="text" maxlength="500">' + esc((S.ann && S.ann.text) || '') + '</textarea></div><div class="row"><button class="btn" type="submit">نشر الإعلان</button><button class="btn ghost" type="button" data-a="annclear">إزالة الإعلان</button></div></form>';
+    } else if (S.adminTab === 'lock') {
+      var openL = (S.openTests || '').split(',').filter(Boolean);
+      b = '<div class="tipbox small" style="margin-top:12px">اختر الاختبارات المفتوحة للطلبة. المقفل يظهر لهم بعلامة قفل، ويبقى الملخص والمصطلحات متاحين. الاختبار السريع يأخذ أسئلته من الفصول المفتوحة فقط. أنت تستطيع فتح كل الاختبارات دائماً للمعاينة.</div>' +
+        '<div class="row" style="margin-top:10px;gap:8px"><button class="btn ghost sm" data-a="lockall" data-v="open">فتح الكل</button><button class="btn ghost sm" data-a="lockall" data-v="close">قفل الكل</button></div>' +
+        '<div class="locklist">' + TESTS.map(function (t) { var on = openL.indexOf(String(t[0])) >= 0; return '<button class="lockrow' + (on ? ' on' : '') + '" data-a="locktog" data-n="' + t[0] + '" aria-pressed="' + on + '"><span class="lt">' + t[1] + (t[0] ? ': ' + esc(CH[t[0] - 1].title) : '') + '</span><span class="sw"><i></i></span><span class="ls">' + (on ? 'مفتوح' : 'مقفل') + '</span></button>'; }).join('') + '</div>';
     } else if (S.adminTab === 'res') {
       b = resultsHTML(A);
     } else if (S.adminTab === 'rate') {
@@ -670,9 +686,9 @@
       case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#071D42' : '#7A1E2C'); render(); break;
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
-      case 'startq': var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;
-      case 'final': var all = []; CH.forEach(function (c) { all = all.concat(mk(c)); }); buildQuiz(shuffle(shuffle(all.filter(function (x) { return !x.tf; })).slice(0, 20).concat(shuffle(all.filter(function (x) { return x.tf; })).slice(0, 10))), 'الامتحان الشامل', 0); break;
-      case 'quick': var al = []; CH.forEach(function (c) { al = al.concat(mk(c)); }); buildQuiz(shuffle(al).slice(0, 10), 'اختبار سريع', -1); break;
+      case 'startq': if (!isOpen(+d.ch)) { lockedMsg(); break; } var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;
+      case 'final': if (!isOpen(0)) { lockedMsg(); break; } var all = []; CH.forEach(function (c) { all = all.concat(mk(c)); }); buildQuiz(shuffle(shuffle(all.filter(function (x) { return !x.tf; })).slice(0, 20).concat(shuffle(all.filter(function (x) { return x.tf; })).slice(0, 10))), 'الامتحان الشامل', 0); break;
+      case 'quick': var al = []; CH.forEach(function (c) { if (isOpen(c.n)) al = al.concat(mk(c)); }); if (!al.length) { lockedMsg(); break; } buildQuiz(shuffle(al).slice(0, 10), 'اختبار سريع', -1); break;
       case 'pick': var Q = S.quiz; if (Q.picked != null) return; Q.picked = +d.k; var it = Q.items[Q.i]; if (Q.picked === it.a) Q.score++; else Q.wrong.push(it); render(); break;
       case 'nextq': var Q2 = S.quiz; Q2.i++; Q2.picked = null; if (Q2.i >= Q2.items.length) finishQuiz(); render(); window.scrollTo(0, 0); break;
       case 'retry': var Q3 = S.quiz; S.quiz = { title: Q3.title, n: Q3.n, items: shuffle(Q3.items).map(function (it) { if (it.tf) return it; var ord = shuffle(it.o.map(function (_, i) { return i; })); return Object.assign({}, it, { o: ord.map(function (i) { return it.o[i]; }), a: ord.indexOf(it.a) }); }), i: 0, picked: null, score: 0, wrong: [] }; render(); break;
@@ -702,12 +718,20 @@
       case 'gateback': S.gate = { email: (S.gate || {}).email }; render(); break;
       case 'confirmemail': var em = ($('#gemail').value || '').trim().toLowerCase(); await completeLink(em); break;
       case 'demologin': var de = ($('#gemail').value || '').trim().toLowerCase(); if (!DOMAIN.test(de)) { S.gate = { email: de, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; } setAuth({ email: de, uid: 'demo-' + de, exp: 9e15 }); await afterLogin(); break;
-      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users') loadUsers(); if (d.t === 'res') loadResults(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
+      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users') loadUsers(); if (d.t === 'res') loadResults(); if (d.t === 'lock') loadTestsCfg(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
       case 'rreload': S.A.rates = null; render(); loadRates(); DB.stats().then(function (x) { S.stats = x; render(); }).catch(function () { }); break;
       case 'qf': S.qFilter = d.f; render(); break;
       case 'xls': exportStudents(); break;
       case 'fclear': S.F = { q: '', st: '', sec: '', status: '', act: '', res: '', sort: 'name' }; render(); break;
       case 'resch': S.resCh = d.n; render(); break;
+      case 'locktog': case 'lockall': {
+        var L = (S.openTests || '').split(',').filter(Boolean), prev = S.openTests;
+        if (a === 'lockall') L = d.v === 'open' ? TESTS.map(function (t) { return String(t[0]); }) : [];
+        else { var k2 = L.indexOf(String(d.n)); if (k2 >= 0) L.splice(k2, 1); else L.push(String(d.n)); }
+        L.sort(function (x, y) { return x - y; }); S.openTests = L.join(','); lsSet('opentests', S.openTests); render();
+        try { await DB.setTestsCfg(S.openTests); toast('حُفظ. يرى الطلبة التغيير خلال دقائق أو عند فتح التطبيق'); } catch (e) { S.openTests = prev; lsSet('opentests', prev); render(); toast('تعذر الحفظ'); }
+        break;
+      }
       case 'resreload': S.A.results = null; render(); loadResults(); break;
       case 'resxls': exportResults(); break;
       case 'ban': case 'udel': case 'unban': {
@@ -815,6 +839,7 @@
   async function refreshData() {
     DB.visit().catch(function () { }).then(function () { return DB.stats(); }).then(function (s) { S.stats = s; if (S.view === 'home' || S.view === 'admin') render(); }).catch(function () { });
     DB.homework().then(function (l) { S.hw = l; render(); sysNotify(); }).catch(function () { });
+    loadTestsCfg();
     DB.announce().then(function (a) { S.ann = a; if (!S.sheet) render(); sysNotify(); }).catch(function () { });
     loadMine();
   }
