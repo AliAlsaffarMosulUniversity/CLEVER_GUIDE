@@ -1016,7 +1016,18 @@
   /* ---------- التشغيل ---------- */
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__bip = e; });
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claudeusercontent|claude\.ai/.test(location.host)) {
-    navigator.serviceWorker.register('sw.js').catch(function () { });
+    var hadCtl = !!navigator.serviceWorker.controller, pendingReload = false;
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      /* يبحث عن نسخة جديدة كلما عاد الطالب إلى التطبيق */
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reg.update().catch(function () { }); });
+    }).catch(function () { });
+    /* نسخة جديدة جاهزة: تُطبَّق فوراً إن كان ذلك آمناً، وإلا عند مغادرة التطبيق. لا تقاطع اختباراً أو كتابة */
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadCtl) { hadCtl = true; return; }
+      var busy = S.view === 'quiz' || S.sheet || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+      if (busy) pendingReload = true; else location.reload();
+    });
+    document.addEventListener('visibilitychange', function () { if (pendingReload && document.visibilityState === 'hidden' && S.view !== 'quiz') location.reload(); });
   }
   (async function boot() {
     var p = new URLSearchParams(location.search);
