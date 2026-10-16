@@ -553,3 +553,9 @@ b,strong{color:var(--bold)}
 .lockrow.on .sw{background:var(--good)}
 .lockrow.on .sw i{right:23px}
 .card[style*="var(--ink)"] b{color:inherit}
+
+/* اختبار المحاولة الواحدة */
+.opt.sel{border-color:var(--acc);background:var(--accs);font-weight:700}
+.rrow2{grid-template-columns:36px minmax(0,1.4fr) minmax(0,1fr) 90px 80px 70px 100px auto}
+.rrow2.uhead::after{content:""}
+@media (max-width:720px){.rrow2{grid-template-areas:"n m b" "n g g" "n x x" "n r r"}.rrow2 .rreset{grid-area:r;justify-self:start}}
