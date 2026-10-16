@@ -52,6 +52,23 @@
   async function sendLink(email) {
     return post(IDT + 'sendOobCode?key=' + CFG.apiKey, { requestType: 'EMAIL_SIGNIN', email: email, continueUrl: baseUrl(), canHandleCodeInApp: true });
   }
+  async function pwAuth(signup, email, pw) {
+    var j = await post(IDT + (signup ? 'signUp' : 'signInWithPassword') + '?key=' + CFG.apiKey, { email: email, password: pw, returnSecureToken: true });
+    setAuth({ idToken: j.idToken, refreshToken: j.refreshToken, exp: Date.now() + (+j.expiresIn || 3600) * 1000, email: (j.email || email).toLowerCase(), uid: j.localId });
+  }
+  function sendReset(email) { return post(IDT + 'sendOobCode?key=' + CFG.apiKey, { requestType: 'PASSWORD_RESET', email: email }); }
+  function authErr(e) {
+    var m = (e && e.message) || '';
+    if (/EMAIL_EXISTS/.test(m)) return 'هذا البريد مسجل من قبل. اختر «لدي حساب» وسجّل الدخول.';
+    if (/INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(m)) return 'البريد أو كلمة المرور غير صحيحة.';
+    if (/WEAK_PASSWORD/.test(m)) return 'كلمة المرور قصيرة. اكتب 6 أحرف أو أرقام على الأقل.';
+    if (/INVALID_EMAIL/.test(m)) return 'البريد الإلكتروني غير صحيح.';
+    if (/TOO_MANY_ATTEMPTS|QUOTA_EXCEEDED|RESET_PASSWORD_EXCEED_LIMIT/.test(m)) return 'محاولات كثيرة. انتظر قليلاً ثم حاول مرة أخرى.';
+    if (/USER_DISABLED/.test(m)) return 'هذا الحساب موقوف. راجع الأستاذ.';
+    if (/OPERATION_NOT_ALLOWED|PASSWORD_LOGIN_DISABLED/.test(m)) return 'الدخول بكلمة المرور غير مفعّل في إعدادات قاعدة البيانات.';
+    if (/abort|Failed to fetch|NetworkError/i.test(m)) return 'تعذر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.';
+    return 'تعذر الدخول. حاول مرة أخرى. (' + m.slice(0, 60) + ')';
+  }
   async function finishLink(email, oob) {
     var j = await post(IDT + 'signInWithEmailLink?key=' + CFG.apiKey, { email: email, oobCode: oob });
     setAuth({ idToken: j.idToken, refreshToken: j.refreshToken, exp: Date.now() + (+j.expiresIn || 3600) * 1000, email: (j.email || email).toLowerCase(), uid: j.localId });
@@ -316,7 +333,7 @@
 
   /* الاختبارات */
   function buildQuiz(items, title, n) { S.quiz = { title: title, n: n, items: items, i: 0, picked: null, score: 0, wrong: [] }; go('quiz'); }
-  function mk(c) { return c.mcq.map(function (q) { return { q: q[0], o: q[1], a: q[2], e: q[3], ch: c.n }; }).concat(c.tf.map(function (t) { return { q: t[0], o: ['صح', 'خطأ'], a: t[1] ? 0 : 1, e: t[2], ch: c.n, tf: 1 }; })); }
+  function mk(c) { return c.mcq.map(function (q) { var ord = shuffle(q[1].map(function (_, i) { return i; })); return { q: q[0], o: ord.map(function (i) { return q[1][i]; }), a: ord.indexOf(q[2]), e: q[3], ch: c.n }; }).concat(c.tf.map(function (t) { return { q: t[0], o: ['صح', 'خطأ'], a: t[1] ? 0 : 1, e: t[2], ch: c.n, tf: 1 }; })); }
   function vQuiz() {
     var Q = S.quiz, it = Q.items[Q.i];
     if (!it) {
@@ -457,11 +474,11 @@
     }
     return topbar('لوحة الأدمن', true) + '<main class="wrap"><div class="admin-head"><b>أدمن التطبيق</b><span class="ltr">' + esc(AUTH.email) + '</span>' + (!LIVE ? '<p class="small" style="margin-top:4px">وضع المعاينة: البيانات محفوظة على هذا الجهاز فقط حتى يُربط التطبيق بقاعدة البيانات.</p>' : '') + '</div><div class="tabs">' + tabs.map(function (t) { return '<button class="tab" data-a="atab" data-t="' + t[0] + '" aria-pressed="' + (S.adminTab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' + b + '</main>';
   }
-  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null\n        && request.auth.token.email_verified == true;\n    }\n    function isAdmin() {\n      return signed() && request.auth.token.email == '" + ADMIN + "';\n    }\n    match /stats/main { allow read, create, update: if signed(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow create, update: if signed() && request.auth.uid == uid;\n    }\n    match /homework/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if signed()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (signed() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n  }\n}";
+  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    match /stats/main { allow read, create, update: if signed(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow create, update: if signed() && request.auth.uid == uid;\n    }\n    match /homework/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if signed()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (signed() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n  }\n}";
   function setupHTML() {
     return '<div class="card" style="margin-top:12px;display:grid;gap:10px"><b>' + (LIVE ? 'التطبيق مربوط بقاعدة البيانات' : 'ربط التطبيق بقاعدة البيانات') + '</b><ol class="steps">' +
-      ['افتح موقع Firebase وأنشئ مشروعاً مجانياً', 'من قسم Firestore Database أنشئ قاعدة بيانات', 'من تبويب Rules الصق القواعد أدناه واضغط Publish', 'من قسم Authentication فعّل طريقة Email link ضمن Email/Password', 'من Authentication ثم Settings ثم Authorized domains أضف نطاق موقع التطبيق', 'من إعدادات المشروع انسخ apiKey و projectId إلى ملف config.js'].map(function (s) { return '<li>' + s + '</li>'; }).join('') +
-      '</ol><p class="small mute">القواعد تمنع أي شخص لا يملك بريداً إلكترونياً مؤكداً من قراءة البيانات أو الكتابة، وتجعل الواجبات والإعلان والتعليقات تحت تصرف بريد الأدمن فقط.</p><pre class="rules" id="rules">' + esc(RULES) + '</pre><button class="btn ink" data-a="copyrules">نسخ القواعد</button></div>';
+      ['افتح موقع Firebase وأنشئ مشروعاً مجانياً', 'من قسم Firestore Database أنشئ قاعدة بيانات', 'من تبويب Rules الصق القواعد أدناه واضغط Publish', 'من قسم Authentication فعّل طريقة Email/Password وخيار Email link', 'من Authentication ثم Settings ثم Authorized domains أضف نطاق موقع التطبيق', 'من إعدادات المشروع انسخ apiKey و projectId إلى ملف config.js'].map(function (s) { return '<li>' + s + '</li>'; }).join('') +
+      '</ol><p class="small mute">القواعد تمنع أي شخص لم يسجّل الدخول من قراءة البيانات أو الكتابة، وتجعل الواجبات والإعلان والتعليقات تحت تصرف بريد الأدمن فقط.</p><pre class="rules" id="rules">' + esc(RULES) + '</pre><button class="btn ink" data-a="copyrules">نسخ القواعد</button></div>';
   }
 
   /* شاشة الدخول */
@@ -474,12 +491,24 @@
       b = '<p>أكّد بريدك الإلكتروني لإكمال الدخول من هذا الجهاز.</p><div class="form"><div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" type="email" dir="ltr" placeholder="name@gmail.com"></div><button class="btn wide" data-a="confirmemail">إكمال الدخول</button></div>';
     } else if (G.sent) {
       b = '<div class="fb ok"><b>أرسلنا رابط الدخول</b>افتح بريدك <span class="ltr" style="display:inline">' + esc(G.email) + '</span> واضغط الرابط من هذا الجهاز. إذا لم تجد الرسالة فابحث في مجلد الرسائل غير المرغوب فيها.</div><button class="btn ghost wide" data-a="gateback">تغيير البريد</button>';
+    } else if (G.mode === 'teacher') {
+      b = '<p class="small mute">دخول الأستاذ برابط يصل إلى البريد.</p><div class="form"><div class="field"><label for="gemail">بريد الأستاذ</label><input id="gemail" type="email" dir="ltr" autocomplete="email" value="' + esc(G.email || '') + '"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button><button type="button" class="linkbtn" data-a="gmode" data-m="login">رجوع إلى دخول الطلبة</button></div>';
+    } else if (G.mode === 'reset') {
+      b = (G.resetSent ? '<div class="fb ok"><b>أرسلنا رابط تعيين كلمة المرور</b>افتح بريدك واضغط الرابط واختر كلمة جديدة، ثم ارجع وسجّل الدخول. ابحث أيضاً في الرسائل غير المرغوب فيها.</div>' : '') +
+        '<form class="form" data-form="reset"><div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" name="email" type="email" dir="ltr" inputmode="email" autocomplete="email" required value="' + esc(G.email || '') + '"></div><button class="btn wide" type="submit"' + (G.busy ? ' disabled' : '') + '>أرسل رابط تعيين كلمة المرور</button><button type="button" class="linkbtn" data-a="gmode" data-m="login">رجوع إلى الدخول</button></form>';
     } else {
-      b = '<div class="form"><div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" type="email" dir="ltr" inputmode="email" autocomplete="email" value="' + esc(G.email || '') + '" placeholder="name@gmail.com"></div><button class="btn wide" data-a="sendlink"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'جارٍ الإرسال…' : 'أرسل رابط الدخول') + '</button></div><p class="small mute">لا كلمة مرور. يصلك رابط على بريدك تضغطه فتدخل.</p>';
+      var su = G.mode === 'signup';
+      b = '<div class="tabs" style="margin-top:0"><button type="button" class="tab" data-a="gmode" data-m="login" aria-pressed="' + !su + '">لدي حساب</button><button type="button" class="tab" data-a="gmode" data-m="signup" aria-pressed="' + su + '">حساب جديد</button></div>' +
+        '<form class="form" data-form="' + (su ? 'signup' : 'login') + '">' +
+        (su ? '<div class="field"><label for="pn">الاسم الثلاثي</label><input id="pn" name="name" required maxlength="80" autocomplete="name"></div><div class="field"><label for="pg">الشعبة أو الدراسة (اختياري)</label><input id="pg" name="group" maxlength="40" placeholder="مثلاً: صباحي، شعبة أ"></div>' : '') +
+        '<div class="field"><label for="gemail">البريد الإلكتروني</label><input id="gemail" name="email" type="email" dir="ltr" inputmode="email" autocomplete="email" required value="' + esc(G.email || '') + '" placeholder="name@gmail.com"></div>' +
+        '<div class="field"><label for="gpw">كلمة المرور' + (su ? ' (6 أحرف على الأقل)' : '') + '</label><input id="gpw" name="pw" type="password" dir="ltr" required autocomplete="' + (su ? 'new-password' : 'current-password') + '"></div>' +
+        '<button class="btn wide" type="submit"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'لحظة…' : su ? 'إنشاء الحساب' : 'دخول') + '</button></form>' +
+        (su ? '' : '<div class="row" style="justify-content:space-between"><button type="button" class="linkbtn" data-a="gmode" data-m="reset">نسيت كلمة المرور؟</button><button type="button" class="linkbtn" data-a="gmode" data-m="teacher">دخول الأستاذ</button></div>');
     }
     return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><div style="display:grid;gap:16px;max-width:420px;margin:0 auto"><div style="display:flex;justify-content:flex-end">' + themeBtn(' plain') + '</div><div class="crest"><span class="crestimg"><img src="icons/college-logo.png" alt="شعار كلية الإدارة والاقتصاد، جامعة الموصل" width="132" height="132"></span><h1>حقيبة الحاسوب</h1><span class="mute small">تطبيقات إدارية باستخدام الحاسوب · المرحلة الثانية</span><span class="crestsub">كلية الإدارة والاقتصاد · جامعة الموصل</span></div>' +
       '<ul class="pts">' + ['ملخصات الفصول العشرة مع الرسوم', 'اختبارات وبطاقات مصطلحات', 'الواجبات وأسئلتك للمحاضرة'].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
-      '<div class="card" style="display:grid;gap:12px"><b>سجّل الدخول ببريدك الإلكتروني</b>' + (G.err ? '<div class="fb no">' + esc(G.err) + '</div>' : '') + b + '</div>' + footer() + '</div></main>';
+      '<div class="card" style="display:grid;gap:12px"><b>' + (G.mode === 'teacher' ? 'دخول الأستاذ' : G.mode === 'reset' ? 'استعادة كلمة المرور' : 'الدخول إلى التطبيق') + '</b>' + (G.err ? '<div class="fb no">' + esc(G.err) + '</div>' : '') + b + '</div>' + footer() + '</div></main>';
   }
   function vProfile() {
     return '<main class="wrap" style="padding-top:max(32px,env(safe-area-inset-top,0px))"><form class="form card" data-form="profile" style="max-width:420px;margin:0 auto"><h2>خطوة أخيرة</h2><p class="mute small">يظهر اسمك للأستاذ فقط مع أسئلتك.</p><span class="ltr">' + esc(AUTH.email) + '</span><div class="field"><label for="pn">الاسم الثلاثي</label><input id="pn" name="name" required maxlength="80"></div><div class="field"><label for="pg">الشعبة أو الدراسة (اختياري)</label><input id="pg" name="group" maxlength="40" placeholder="مثلاً: صباحي، شعبة أ"></div><button class="btn" type="submit">ابدأ</button></form></main>';
@@ -547,7 +576,7 @@
       case 'quick': var al = []; CH.forEach(function (c) { al = al.concat(mk(c)); }); buildQuiz(shuffle(al).slice(0, 10), 'اختبار سريع', -1); break;
       case 'pick': var Q = S.quiz; if (Q.picked != null) return; Q.picked = +d.k; var it = Q.items[Q.i]; if (Q.picked === it.a) Q.score++; else Q.wrong.push(it); render(); break;
       case 'nextq': var Q2 = S.quiz; Q2.i++; Q2.picked = null; if (Q2.i >= Q2.items.length) finishQuiz(); render(); window.scrollTo(0, 0); break;
-      case 'retry': var Q3 = S.quiz; S.quiz = { title: Q3.title, n: Q3.n, items: shuffle(Q3.items), i: 0, picked: null, score: 0, wrong: [] }; render(); break;
+      case 'retry': var Q3 = S.quiz; S.quiz = { title: Q3.title, n: Q3.n, items: shuffle(Q3.items).map(function (it) { if (it.tf) return it; var ord = shuffle(it.o.map(function (_, i) { return i; })); return Object.assign({}, it, { o: ord.map(function (i) { return it.o[i]; }), a: ord.indexOf(it.a) }); }), i: 0, picked: null, score: 0, wrong: [] }; render(); break;
       case 'cardsch': S.cardF = +d.ch; S.cardI = 0; S.flip = false; go('cards'); break;
       case 'cardf': S.cardF = +d.n; S.cardI = 0; S.flip = false; render(); break;
       case 'flip': S.flip = !S.flip; render(); break;
@@ -570,6 +599,7 @@
       case 'hwdone': if (P.hwDone[d.id]) delete P.hwDone[d.id]; else P.hwDone[d.id] = 1; saveP(); render(); break;
       case 'logout': setAuth(null); S.profile = null; S.gate = {}; S.view = 'gate'; render(); break;
       case 'sendlink': await doSend(); break;
+      case 'gmode': var ge = $('#gemail'); S.gate = { mode: d.m, email: ge ? ge.value.trim() : '' }; render(); break;
       case 'gateback': S.gate = { email: (S.gate || {}).email }; render(); break;
       case 'confirmemail': var em = ($('#gemail').value || '').trim().toLowerCase(); await completeLink(em); break;
       case 'demologin': var de = ($('#gemail').value || '').trim().toLowerCase(); if (!DOMAIN.test(de)) { S.gate = { email: de, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; } setAuth({ email: de, uid: 'demo-' + de, exp: 9e15 }); await afterLogin(); break;
@@ -596,6 +626,25 @@
       if (k === 'ask') { if (!fd.text) return; var sh = S.sheet; var c = { ch: sh.ch, topic: sh.sid, topicTitle: sh.title, text: fd.text }; await DB.ask(c); S.myqs.push(Object.assign({ status: 'open', ts: new Date().toISOString() }, c)); S.sheet = null; render(); toast('وصل سؤالك إلى الأستاذ'); }
       else if (k === 'hw') { await DB.addHw(fd); toast('نُشر الواجب لجميع الطلبة'); S.hw = await DB.homework(); render(); }
       else if (k === 'ann') { await DB.setAnnounce(fd.text); S.ann = { text: fd.text, ts: new Date().toISOString() }; toast('نُشر الإعلان'); render(); }
+      else if (k === 'login' || k === 'signup') {
+        var em = (fd.email || '').toLowerCase();
+        if (!DOMAIN.test(em)) { S.gate = { mode: k, email: em, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; }
+        if ((fd.pw || '').length < 6) { S.gate = { mode: k, email: em, err: 'كلمة المرور 6 أحرف على الأقل.' }; render(); return; }
+        if (k === 'signup' && !fd.name) { S.gate = { mode: k, email: em, err: 'اكتب اسمك الثلاثي.' }; render(); return; }
+        S.gate = { mode: k, email: em, busy: true }; render();
+        try {
+          await pwAuth(k === 'signup', em, fd.pw);
+          if (k === 'signup') { var pf = { name: fd.name, group: fd.group || '' }; try { await DB.saveProfile(pf); } catch (e2) { } S.profile = pf; lsSet('prof', pf); }
+          await afterLogin();
+        } catch (e) { S.gate = { mode: k, email: em, err: authErr(e) }; render(); }
+        return;
+      }
+      else if (k === 'reset') {
+        var re = (fd.email || '').toLowerCase();
+        if (!DOMAIN.test(re)) { S.gate = { mode: 'reset', email: re, err: 'اكتب بريداً إلكترونياً صحيحاً.' }; render(); return; }
+        try { await sendReset(re); S.gate = { mode: 'reset', email: re, resetSent: true }; } catch (e) { S.gate = { mode: 'reset', email: re, err: authErr(e) }; }
+        render(); return;
+      }
       else if (k === 'profile') { if (!fd.name) return; await DB.saveProfile(fd); S.profile = fd; S.view = 'home'; refreshData(); render(); }
     } catch (e) { toast('تعذر الإرسال، تحقق من الاتصال'); if (btn) btn.disabled = false; }
   });
@@ -612,9 +661,9 @@
   async function doSend() {
     var em = ($('#gemail').value || '').trim().toLowerCase();
     if (!DOMAIN.test(em)) { S.gate = { email: em, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; }
-    S.gate = { email: em, busy: true }; render();
-    try { await sendLink(em); lsSet('pending', em); S.gate = { email: em, sent: true }; }
-    catch (e) { S.gate = { email: em, err: 'تعذر إرسال الرابط. تحقق من الاتصال وحاول بعد قليل.' }; }
+    S.gate = { mode: 'teacher', email: em, busy: true }; render();
+    try { await sendLink(em); lsSet('pending', em); S.gate = { mode: 'teacher', email: em, sent: true }; }
+    catch (e) { S.gate = { mode: 'teacher', email: em, err: /QUOTA|LIMIT|TOO_MANY/.test(e.message) ? 'وصلنا الحد اليومي لرسائل الرابط. حاول غداً، أو ادخل بكلمة المرور.' : authErr(e) }; }
     render();
   }
   async function completeLink(em) {
