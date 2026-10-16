@@ -568,7 +568,7 @@
       case 'bell': S.sheet = { type: 'notif', seen: lsGet('seenTs', '') }; var top = notifItems()[0]; lsSet('seenTs', top && top.ts ? top.ts : new Date().toISOString()); render(); break;
       case 'notifgo': S.sheet = null; if (d.t === 'hw') { go('hw'); loadMine(); } else { go('home'); } break;
       case 'askperm': try { Notification.requestPermission().then(function (r) { if (r === 'granted') { lsSet('notifiedTs', (notifItems()[0] || {}).ts || new Date().toISOString()); toast('تم تفعيل الإشعارات'); } render(); }); } catch (e) { } break;
-      case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#5C1020' : '#6E1423'); render(); break;
+      case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#072859' : '#0B3A80'); render(); break;
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
       case 'startq': var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;

@@ -1,25 +1,25 @@
 /* حقيبة الحاسوب — لوحة دوائر: أرضية نقطية، أزرق مخضر للشبكات، كهرماني للتنبيه */
-/* هوية مارونية: ماروني عميق على أبيض نقي، بلمسات وردية فاتحة */
+/* أبيض وأزرق بتباين عالٍ: نص شبه أسود على أبيض، وأزرق جامعي عميق للعناصر */
 :root{
-  --bg:#FBF7F8; --surf:#FFFFFF; --surf2:#F6ECEE; --line:#EAD6DA; --ink:#2A1015; --mute:#6B4C52;
-  --acc:#7A1E2C; --accs:#F7E7EA; --onacc:#FFFFFF; --amb:#C25B6E; --ambs:#FBEEF0;
-  --ai:#9E2F45; --ais:#F9E8EC; --good:#1F7A3E; --goods:#DDF1E3; --bad:#B3321F; --bads:#F8E0DA;
-  --tk:#2A1015; --navy:#6E1423; --navy2:#520E1A; --gold:#F1D3D9; --onnavy:#FFFFFF;
+  --bg:#F4F7FC; --surf:#FFFFFF; --surf2:#E9F0FB; --line:#C9D6EC; --ink:#0A1428; --mute:#33415C;
+  --acc:#0B4AA2; --accs:#E3EDFC; --onacc:#FFFFFF; --amb:#1D63C4; --ambs:#E6F0FE;
+  --ai:#0A3F8C; --ais:#E1EBFA; --good:#0E5424; --goods:#DDF1E3; --bad:#861A10; --bads:#FBE3DE;
+  --tk:#0A1428; --navy:#0B3A80; --navy2:#082C62; --gold:#DCE8FA; --onnavy:#FFFFFF;
   --f-disp:"Cairo","IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
   --f-body:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
   --f-mono:"JetBrains Mono",Consolas,"Courier New",monospace;
   --r:14px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#17080C; --surf:#231015; --surf2:#30161D; --line:#4A2530; --ink:#F7EDEF; --mute:#CDB1B7;
-  --acc:#EE9AA8; --accs:#3A1820; --onacc:#2A0B11; --amb:#E58595; --ambs:#3A1820;
-  --ai:#F3B4BF; --ais:#38171F; --good:#5BCB82; --goods:#14301F; --bad:#FF8A73; --bads:#3A1C16;
-  --tk:#2A0B11; --navy:#5C1020; --navy2:#3D0914; --gold:#F1D3D9; color-scheme:dark}}
+  --bg:#08111F; --surf:#0F1C33; --surf2:#162845; --line:#2C4470; --ink:#F4F8FF; --mute:#D0DBEE;
+  --acc:#9CC8FF; --accs:#14305A; --onacc:#06142B; --amb:#7DB4FF; --ambs:#142C52;
+  --ai:#B9D8FF; --ais:#14305A; --good:#6FD995; --goods:#123321; --bad:#FF9C88; --bads:#3D1A14;
+  --tk:#06142B; --navy:#0B3A80; --navy2:#072859; --gold:#DCE8FA; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#17080C; --surf:#231015; --surf2:#30161D; --line:#4A2530; --ink:#F7EDEF; --mute:#CDB1B7;
-  --acc:#EE9AA8; --accs:#3A1820; --onacc:#2A0B11; --amb:#E58595; --ambs:#3A1820;
-  --ai:#F3B4BF; --ais:#38171F; --good:#5BCB82; --goods:#14301F; --bad:#FF8A73; --bads:#3A1C16;
-  --tk:#2A0B11; --navy:#5C1020; --navy2:#3D0914; --gold:#F1D3D9; color-scheme:dark}
+  --bg:#08111F; --surf:#0F1C33; --surf2:#162845; --line:#2C4470; --ink:#F4F8FF; --mute:#D0DBEE;
+  --acc:#9CC8FF; --accs:#14305A; --onacc:#06142B; --amb:#7DB4FF; --ambs:#142C52;
+  --ai:#B9D8FF; --ais:#14305A; --good:#6FD995; --goods:#123321; --bad:#FF9C88; --bads:#3D1A14;
+  --tk:#06142B; --navy:#0B3A80; --navy2:#072859; --gold:#DCE8FA; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -309,7 +309,7 @@ svg .b{fill:var(--surf2)} svg .a{fill:var(--acc)} svg .m{fill:var(--amb)} svg .k
 svg .sec .b{fill:var(--surf)}
 .ill svg .b{fill:var(--surf)}
 svg text{font-family:var(--f-body);stroke:none}
-svg .tx{fill:var(--ink)} svg .tk{fill:var(--tk)} svg .tb{fill:var(--bg)} svg .tm{fill:var(--ink);font-family:var(--f-mono)}
+svg .tx{fill:var(--ink)} svg .tk{fill:var(--onacc)} svg .tb{fill:var(--bg)} svg .tm{fill:var(--ink);font-family:var(--f-mono)}
 .chcard.ai .ic svg .a,.chhead.ai svg .a{fill:var(--ai)}
 
 /* ===== هوية الجامعة ===== */
@@ -421,3 +421,24 @@ h1,h2,h3{font-weight:700;letter-spacing:0}
 .footlogo,.logo{box-shadow:0 0 0 2px var(--gold)}
 .btn.amb{background:var(--surf);color:var(--acc);box-shadow:inset 0 0 0 2px var(--acc)}
 .hero .eyebrow{color:var(--gold)}
+
+/* وضوح النص */
+body{font-size:17px;line-height:1.8;-webkit-font-smoothing:antialiased}
+.small{font-size:.92rem}
+.mute{color:var(--mute)}
+.hero p,.hero .eyebrow,.stat span{opacity:1}
+.hero p{color:#E8F0FF}
+.stat span{color:#DCE8FA}
+.chcard .tx span,.dev p,.tool span,.notif .ntx span,.cm .meta,.qtop,.foot{color:var(--mute)}
+.chcard .tx span{font-size:.86rem}
+.dev p{font-size:.84rem}
+.tool span{font-size:.84rem}
+table{font-size:.92rem}
+th{font-size:.86rem;color:var(--ink)}
+.pts li,.steps li{font-size:1rem}
+.tab{font-size:.95rem;font-weight:500}
+.nav button{font-size:.78rem;color:var(--mute);font-weight:500}
+.nav button[aria-current="page"]{font-weight:700}
+.opt{font-size:1rem}
+.btn{font-size:1rem}
+.chcard.ai .ic .num{background:var(--surf);color:var(--ai);border-color:var(--ai)}
