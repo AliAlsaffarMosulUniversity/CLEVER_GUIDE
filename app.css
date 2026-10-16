@@ -26,7 +26,8 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{height:100%}
+html,body{min-height:100%}
+html{background:var(--bg)!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.75;
   }
 button,input,textarea,select{font:inherit;color:inherit}
@@ -452,3 +453,13 @@ th{font-size:.86rem;color:var(--ink)}
 .btn:disabled{opacity:.6}
 b,strong{color:var(--bold)}
 .hero b,.top b,.btn b,.admin-head b,.out b,.flash .back b,.fb b,.tab b,.bdot{color:inherit}
+
+/* رأي الطالب */
+.rateopts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rateopt{display:flex;align-items:center;gap:10px;border:2px solid var(--line);border-radius:12px;padding:10px 12px;min-height:50px;background:var(--surf);cursor:pointer;font-weight:600}
+.rateopt input{width:20px;height:20px;accent-color:var(--acc);flex:none;margin:0}
+.rateopt:has(input:checked){border-color:var(--acc);background:var(--accs)}
+.ratebars{display:grid;gap:10px}
+.rb{display:grid;grid-template-columns:88px 1fr auto;gap:10px;align-items:center}
+.rb .bar{height:12px}
+.rb b{font-family:var(--f-mono);font-size:.85rem;min-width:70px;text-align:end}

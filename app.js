@@ -116,7 +116,10 @@
     myQs: async function () { var r = await fs('POST', ':runQuery', { structuredQuery: { from: [{ collectionId: 'comments' }], where: { fieldFilter: { field: { fieldPath: 'uid' }, op: 'EQUAL', value: { stringValue: AUTH.uid } } } } }); return (r || []).filter(function (x) { return x.document; }).map(function (x) { return decD(x.document); }); },
     allQs: async function () { var d = await fs('GET', '/comments?pageSize=500'); return ((d && d.documents) || []).map(decD); },
     setQ: function (id, st) { return fs('PATCH', '/comments/' + id + '?updateMask.fieldPaths=status', encF({ status: st })); },
-    delQ: function (id) { return fs('DELETE', '/comments/' + id); }
+    delQ: function (id) { return fs('DELETE', '/comments/' + id); },
+    rate: function (r, note) { return fs('POST', '/feedback?documentId=' + AUTH.uid, encF({ uid: AUTH.uid, email: AUTH.email, name: (S.profile && S.profile.name) || '', group: (S.profile && S.profile.group) || '', rating: r, note: note || '', ts: new Date() })); },
+    ratings: async function () { var d = await fs('GET', '/feedback?pageSize=500'); return ((d && d.documents) || []).map(decD); },
+    rateSeen: function () { return fs('PATCH', '/users/' + AUTH.uid + '?updateMask.fieldPaths=fbSeen', encF({ fbSeen: true })); }
   } : (function () {
     /* وضع المعاينة: كل شيء محفوظ على هذا الجهاز فقط */
     var D = lsGet('demo', null) || { stats: { visits: 0, users: 1 }, hw: [], ann: null, qs: [], users: [] };
@@ -138,9 +141,22 @@
       myQs: async function () { return D.qs.filter(function (q) { return q.uid === AUTH.uid; }); },
       allQs: async function () { return D.qs; },
       setQ: async function (i, st) { D.qs.forEach(function (q) { if (q.id === i) q.status = st; }); sv(); },
-      delQ: async function (i) { D.qs = D.qs.filter(function (q) { return q.id !== i; }); sv(); }
+      delQ: async function (i) { D.qs = D.qs.filter(function (q) { return q.id !== i; }); sv(); },
+      rate: async function (r, note) { D.fb = (D.fb || []).filter(function (x) { return x.uid !== AUTH.uid; }); D.fb.push({ id: AUTH.uid, uid: AUTH.uid, email: AUTH.email, name: (S.profile && S.profile.name) || '', group: (S.profile && S.profile.group) || '', rating: r, note: note || '', ts: new Date().toISOString() }); sv(); },
+      ratings: async function () { return D.fb || []; },
+      rateSeen: async function () { var pf = lsGet('demoprof', null); if (pf) { pf.fbSeen = true; lsSet('demoprof', pf); } }
     };
   })();
+
+  /* رأي الطالب بالتطبيق: 6 أعلى تقدير و1 أدناه */
+  var RATES = [[6, 'ممتاز'], [5, 'جيد جداً'], [4, 'جيد'], [3, 'لا بأس به'], [2, 'سيئ'], [1, 'لا نحتاجه']];
+  function rateName(n) { var r = RATES.filter(function (x) { return x[0] === +n; })[0]; return r ? r[1] : '—'; }
+  function maybeAskRating() {
+    if (!AUTH || isAdmin() || !S.profile || S.profile.fbSeen || lsGet('fbseen-' + AUTH.uid, false)) return;
+    lsSet('fbseen-' + AUTH.uid, true); S.profile.fbSeen = true; lsSet('prof', S.profile);
+    DB.rateSeen().catch(function () { });
+    setTimeout(function () { if (S.view !== 'gate' && !S.sheet) { S.sheet = { type: 'rate' }; render(); } }, 2500);
+  }
 
   /* ---------- الحالة ---------- */
   var S = { view: 'home', stack: [], ch: null, tab: 'sum', stats: null, hw: lsGet('hwcache', []), ann: lsGet('anncache', null), myqs: [], profile: null, sheet: null, adminTab: 'qs', qFilter: 'open', cardF: 0, cardI: 0, flip: false };
@@ -449,7 +465,7 @@
   /* لوحة الأدمن */
   function vAdmin() {
     if (!isAdmin()) return topbar('لوحة الأدمن', true) + '<main class="wrap"><div class="card empty" style="margin-top:14px">هذه الصفحة لأدمن التطبيق فقط.</div></main>';
-    var tabs = [['qs', 'تعليقات الطلبة'], ['hw', 'الواجبات'], ['ann', 'الإعلان'], ['users', 'الطلبة'], ['stats', 'الإحصاءات'], ['setup', 'الإعداد']];
+    var tabs = [['qs', 'تعليقات الطلبة'], ['hw', 'الواجبات'], ['ann', 'الإعلان'], ['rate', 'آراء الطلبة'], ['users', 'الطلبة'], ['stats', 'الإحصاءات'], ['setup', 'الإعداد']];
     var A = S.A || {}, b = '';
     if (S.adminTab === 'qs') {
       var all = (A.qs || []).filter(function (q) { return S.qFilter === 'all' || q.status !== 'done'; });
@@ -462,6 +478,14 @@
         '<section class="block"><h3>الواجبات المنشورة<small>' + S.hw.length + '</small></h3>' + (S.hw.length ? S.hw.map(function (h) { return '<div class="hw"><div class="h"><b>' + esc(h.title) + '</b><span class="pill">' + (h.due ? esc(h.due) : 'بلا موعد') + '</span></div>' + (h.details ? '<p>' + esc(h.details) + '</p>' : '') + '<div class="row"><button class="btn danger" data-a="hwdel" data-id="' + h.id + '">حذف الواجب</button></div></div>'; }).join('') : '<p class="mute">لا توجد واجبات.</p>') + '</section>';
     } else if (S.adminTab === 'ann') {
       b = '<form class="form card" style="margin-top:12px" data-form="ann"><b>إعلان يظهر أعلى الصفحة الرئيسية لكل الطلبة</b><div class="field"><label for="annt">نص الإعلان</label><textarea id="annt" name="text" maxlength="500">' + esc((S.ann && S.ann.text) || '') + '</textarea></div><div class="row"><button class="btn" type="submit">نشر الإعلان</button><button class="btn ghost" type="button" data-a="annclear">إزالة الإعلان</button></div></form>';
+    } else if (S.adminTab === 'rate') {
+      var rl = (A.rates || []).slice().sort(function (a, b) { return (b.rating || 0) - (a.rating || 0) || ((a.name || '') < (b.name || '') ? -1 : 1); });
+      var tot = rl.length, avg = tot ? rl.reduce(function (s, x) { return s + (+x.rating || 0); }, 0) / tot : 0;
+      b = '<div class="row" style="margin-top:12px"><button class="tab" data-a="rreload">تحديث</button></div>' +
+        (!A.rates ? '<p class="mute" style="margin-top:12px">جارٍ التحميل…</p>' :
+        '<div class="kpis" style="margin-top:12px"><div class="kpi"><b>' + fmtN(tot) + '</b><span>عدد المصوّتين</span></div><div class="kpi"><b>' + (tot ? rateName(Math.round(avg)) : '—') + '</b><span>التقدير العام</span></div></div>' +
+        '<section class="block"><h3>توزيع الآراء</h3><div class="ratebars">' + RATES.map(function (r) { var c = rl.filter(function (x) { return +x.rating === r[0]; }).length, pc = tot ? Math.round(c / tot * 100) : 0; return '<div class="rb"><span>' + r[1] + '</span><div class="bar"><i style="width:' + pc + '%"></i></div><b>' + fmtN(c) + ' · ' + pc + '%</b></div>'; }).join('') + '</div></section>' +
+        '<section class="block"><h3>من صوّت وماذا اختار<small>' + tot + '</small></h3>' + (tot ? '<div class="tblwrap"><table><thead><tr><th>الاسم</th><th>الرأي</th><th>الملاحظة</th><th>الشعبة</th><th>البريد</th><th>التاريخ</th></tr></thead><tbody>' + rl.map(function (x) { return '<tr><td>' + esc(x.name || 'طالب') + '</td><td><b>' + rateName(x.rating) + '</b></td><td>' + esc(x.note || '') + '</td><td>' + esc(x.group || '') + '</td><td><span class="ltr">' + esc(x.email || '') + '</span></td><td>' + fmtDate(x.ts) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="mute">لم يصوّت أحد بعد.</p>') + '</section>');
     } else if (S.adminTab === 'users') {
       var us = (A.users || []).slice().sort(function (a, b) { return (a.name || '') < (b.name || '') ? -1 : 1; });
       b = '<p class="small mute" style="margin-top:12px">الطلبة المسجلون في التطبيق: ' + us.length + '</p><div class="tblwrap" style="margin-top:8px"><table><thead><tr><th>الاسم</th><th>الشعبة</th><th>البريد</th></tr></thead><tbody>' + us.map(function (u) { return '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.group || '') + '</td><td><span class="ltr">' + esc(u.email) + '</span></td></tr>'; }).join('') + '</tbody></table></div>';
@@ -474,7 +498,7 @@
     }
     return topbar('لوحة الأدمن', true) + '<main class="wrap"><div class="admin-head"><b>أدمن التطبيق</b><span class="ltr">' + esc(AUTH.email) + '</span>' + (!LIVE ? '<p class="small" style="margin-top:4px">وضع المعاينة: البيانات محفوظة على هذا الجهاز فقط حتى يُربط التطبيق بقاعدة البيانات.</p>' : '') + '</div><div class="tabs">' + tabs.map(function (t) { return '<button class="tab" data-a="atab" data-t="' + t[0] + '" aria-pressed="' + (S.adminTab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' + b + '</main>';
   }
-  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    match /stats/main { allow read, create, update: if signed(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow create, update: if signed() && request.auth.uid == uid;\n    }\n    match /homework/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if signed()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (signed() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n  }\n}";
+  var RULES = "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function signed() {\n      return request.auth != null;\n    }\n    function isAdmin() {\n      return signed()\n        && request.auth.token.email_verified == true\n        && request.auth.token.email == '" + ADMIN + "';\n    }\n    match /stats/main { allow read, create, update: if signed(); }\n    match /users/{uid} {\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow create, update: if signed() && request.auth.uid == uid;\n    }\n    match /homework/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /config/{id} { allow read: if signed(); allow write: if isAdmin(); }\n    match /comments/{id} {\n      allow create: if signed()\n        && request.resource.data.uid == request.auth.uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.text is string\n        && request.resource.data.text.size() > 0\n        && request.resource.data.text.size() <= 600;\n      allow read: if isAdmin() || (signed() && resource.data.uid == request.auth.uid);\n      allow update, delete: if isAdmin();\n    }\n    match /feedback/{uid} {\n      allow create: if signed()\n        && request.auth.uid == uid\n        && request.resource.data.uid == uid\n        && request.resource.data.email == request.auth.token.email\n        && request.resource.data.rating is int\n        && request.resource.data.rating >= 1\n        && request.resource.data.rating <= 6\n        && request.resource.data.note is string\n        && request.resource.data.note.size() <= 500;\n      allow read: if isAdmin() || (signed() && request.auth.uid == uid);\n      allow delete: if isAdmin();\n    }\n  }\n}";
   function setupHTML() {
     return '<div class="card" style="margin-top:12px;display:grid;gap:10px"><b>' + (LIVE ? 'التطبيق مربوط بقاعدة البيانات' : 'ربط التطبيق بقاعدة البيانات') + '</b><ol class="steps">' +
       ['افتح موقع Firebase وأنشئ مشروعاً مجانياً', 'من قسم Firestore Database أنشئ قاعدة بيانات', 'من تبويب Rules الصق القواعد أدناه واضغط Publish', 'من قسم Authentication فعّل طريقة Email/Password وخيار Email link', 'من Authentication ثم Settings ثم Authorized domains أضف نطاق موقع التطبيق', 'من إعدادات المشروع انسخ apiKey و projectId إلى ملف config.js'].map(function (s) { return '<li>' + s + '</li>'; }).join('') +
@@ -522,6 +546,8 @@
       var mine = S.myqs.filter(function (q) { return q.topic === sh.sid && +q.ch === +sh.ch; });
       inner = '<h3>سؤال للمحاضرة القادمة</h3><span class="pill">الفصل ' + sh.ch + ' · ' + esc(sh.sid) + ' ' + esc(sh.title) + '</span><form class="form" data-form="ask"><div class="field"><label for="askt">ما الذي لم تفهمه؟</label><textarea id="askt" name="text" required maxlength="600" placeholder="اكتب سؤالك أو النقطة الغامضة"></textarea></div><p class="small mute">يصل سؤالك إلى الأستاذ مع اسمك، ليشرح النقطة في المحاضرة القادمة.</p><div class="row"><button class="btn" type="submit">إرسال</button><button class="btn ghost" type="button" data-a="closesheet">إلغاء</button></div></form>' +
         (mine.length ? '<div><b class="small">أسئلتك السابقة هنا</b>' + mine.map(function (q) { return '<div class="cm" style="margin-top:6px"><p>' + esc(q.text) + '</p><span class="pill ' + (q.status === 'done' ? 'good' : 'amb') + '">' + (q.status === 'done' ? 'شُرحت' : 'بانتظار الشرح') + '</span></div>'; }).join('') + '</div>' : '');
+    } else if (sh.type === 'rate') {
+      inner = '<h3>رأيك مهم لأغراض الجودة والتحسين</h3><p class="small">ما تقييمك لتطبيق حقيبة الحاسوب؟ يظهر هذا السؤال مرة واحدة فقط.</p><form class="form" data-form="rate"><div class="rateopts">' + RATES.map(function (r) { return '<label class="rateopt"><input type="radio" name="r" value="' + r[0] + '" required><span>' + r[1] + '</span></label>'; }).join('') + '</div><div class="field"><label for="rnote">ملاحظة أو اقتراح (اختياري)</label><textarea id="rnote" name="note" maxlength="500" placeholder="ما الذي تريد أن نحسّنه؟"></textarea></div><p class="small mute">يصل رأيك إلى الأستاذ مع اسمك.</p><div class="row"><button class="btn" type="submit">إرسال الرأي</button><button class="btn ghost" type="button" data-a="closesheet">ليس الآن</button></div></form>';
     } else if (sh.type === 'notif') {
       inner = notifSheet();
     } else if (sh.type === 'install') {
@@ -603,7 +629,8 @@
       case 'gateback': S.gate = { email: (S.gate || {}).email }; render(); break;
       case 'confirmemail': var em = ($('#gemail').value || '').trim().toLowerCase(); await completeLink(em); break;
       case 'demologin': var de = ($('#gemail').value || '').trim().toLowerCase(); if (!DOMAIN.test(de)) { S.gate = { email: de, err: 'اكتب بريداً إلكترونياً صحيحاً، مثل name@gmail.com' }; render(); return; } setAuth({ email: de, uid: 'demo-' + de, exp: 9e15 }); await afterLogin(); break;
-      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users' && !(S.A && S.A.users)) loadUsers(); break;
+      case 'atab': S.adminTab = d.t; render(); if (d.t === 'users' && !(S.A && S.A.users)) loadUsers(); if (d.t === 'rate' && !(S.A && S.A.rates)) loadRates(); break;
+      case 'rreload': S.A.rates = null; render(); loadRates(); break;
       case 'qf': S.qFilter = d.f; render(); break;
       case 'areload': loadAdmin(); break;
       case 'qdone': case 'qopen': try { await DB.setQ(d.id, a === 'qdone' ? 'done' : 'open'); (S.A.qs || []).forEach(function (q) { if (q.id === d.id) q.status = a === 'qdone' ? 'done' : 'open'; }); render(); } catch (e) { toast('تعذر الحفظ'); } break;
@@ -620,11 +647,12 @@
   });
   document.addEventListener('submit', async function (ev) {
     var f = ev.target, k = f.getAttribute('data-form'); if (!k) return; ev.preventDefault();
-    var fd = {}; Array.prototype.forEach.call(f.elements, function (x) { if (x.name) fd[x.name] = x.value.trim(); });
+    var fd = {}; Array.prototype.forEach.call(f.elements, function (x) { if (x.name && (x.type !== 'radio' || x.checked)) fd[x.name] = x.value.trim(); });
     var btn = f.querySelector('[type=submit]'); if (btn) btn.disabled = true;
     try {
       if (k === 'ask') { if (!fd.text) return; var sh = S.sheet; var c = { ch: sh.ch, topic: sh.sid, topicTitle: sh.title, text: fd.text }; await DB.ask(c); S.myqs.push(Object.assign({ status: 'open', ts: new Date().toISOString() }, c)); S.sheet = null; render(); toast('وصل سؤالك إلى الأستاذ'); }
       else if (k === 'hw') { await DB.addHw(fd); toast('نُشر الواجب لجميع الطلبة'); S.hw = await DB.homework(); render(); }
+      else if (k === 'rate') { if (!fd.r) { toast('اختر تقييماً أولاً'); return; } await DB.rate(+fd.r, fd.note || ''); S.sheet = null; render(); toast('شكراً لك، وصل رأيك'); }
       else if (k === 'ann') { await DB.setAnnounce(fd.text); S.ann = { text: fd.text, ts: new Date().toISOString() }; toast('نُشر الإعلان'); render(); }
       else if (k === 'login' || k === 'signup') {
         var em = (fd.email || '').toLowerCase();
@@ -645,7 +673,7 @@
         try { await sendReset(re); S.gate = { mode: 'reset', email: re, resetSent: true }; } catch (e) { S.gate = { mode: 'reset', email: re, err: authErr(e) }; }
         render(); return;
       }
-      else if (k === 'profile') { if (!fd.name) return; await DB.saveProfile(fd); S.profile = fd; S.view = 'home'; refreshData(); render(); }
+      else if (k === 'profile') { if (!fd.name) return; await DB.saveProfile(fd); S.profile = Object.assign({}, S.profile || {}, fd); S.view = 'home'; refreshData(); render(); maybeAskRating(); }
     } catch (e) { toast('تعذر الإرسال، تحقق من الاتصال'); if (btn) btn.disabled = false; }
   });
 
@@ -677,7 +705,7 @@
     try { S.profile = await DB.profile(); } catch (e) { S.profile = lsGet('prof', null); }
     if (!S.profile) { S.view = 'profile'; render(); return; }
     lsSet('prof', S.profile);
-    S.view = 'home'; render(); refreshData();
+    S.view = 'home'; render(); refreshData(); maybeAskRating();
   }
   async function refreshData() {
     DB.visit().catch(function () { }).then(function () { return DB.stats(); }).then(function (s) { S.stats = s; if (S.view === 'home' || S.view === 'admin') render(); }).catch(function () { });
@@ -691,6 +719,7 @@
     DB.allQs().then(function (l) { S.A.qs = l; }).catch(function () { toast('تعذر تحميل التعليقات'); }).then(function () { S.A.loading = false; if (S.view === 'admin') render(); });
     DB.stats().then(function (s) { S.stats = s; }).catch(function () { });
   }
+  function loadRates() { S.A = S.A || {}; DB.ratings().then(function (l) { S.A.rates = l; render(); }).catch(function () { S.A.rates = []; render(); toast('تعذر تحميل الآراء. تأكد من نشر القواعد الجديدة.'); }); }
   function loadUsers() { DB.users().then(function (l) { S.A.users = l; render(); }).catch(function () { toast('تعذر تحميل قائمة الطلبة'); }); }
 
   /* ---------- التشغيل ---------- */
