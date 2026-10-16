@@ -389,6 +389,19 @@
   function myRes() { return S.myres || lsGet('myres', {}) || {}; }
   function attempted(n) { return !isAdmin() && !!(+myRes()['c' + n]); }
   function myScore(n) { var r = myRes(); return r['c' + n] ? +r['b' + n] : null; }
+  /* الامتحان الشامل: 100 سؤال من كل الفصول، 70 اختيار من متعدد و30 صح أو خطأ، موزعة على الفصول بنسبة حجم كل فصل */
+  var FINAL_MCQ = 70, FINAL_TF = 30;
+  function pickSpread(groups, total) {
+    var sum = groups.reduce(function (a, g) { return a + g.length; }, 0); if (sum <= total) return [].concat.apply([], groups);
+    var q = groups.map(function (g) { var x = total * g.length / sum; return { g: g, n: Math.floor(x), r: x - Math.floor(x) }; });
+    var left = total - q.reduce(function (a, o) { return a + o.n; }, 0);
+    q.slice().sort(function (a, b) { return b.r - a.r; }).forEach(function (o) { if (left > 0 && o.n < o.g.length) { o.n++; left--; } });
+    return [].concat.apply([], q.map(function (o) { return shuffle(o.g.slice()).slice(0, o.n); }));
+  }
+  function finalItems() {
+    var m = CH.map(function (c) { return mk(c).filter(function (x) { return !x.tf; }); }), t = CH.map(function (c) { return mk(c).filter(function (x) { return x.tf; }); });
+    return shuffle(pickSpread(m, FINAL_MCQ).concat(pickSpread(t, FINAL_TF)));
+  }
   function buildQuiz(items, title, n) { S.quiz = { title: title, n: n, items: items, i: 0, picked: null, score: 0, wrong: [], intro: n >= 0 && !isAdmin() }; go('quiz'); }
   function mk(c) { return c.mcq.map(function (q) { var ord = shuffle(q[1].map(function (_, i) { return i; })); return { q: q[0], o: ord.map(function (i) { return q[1][i]; }), a: ord.indexOf(q[2]), e: q[3], ch: c.n }; }).concat(c.tf.map(function (t) { return { q: t[0], o: ['صح', 'خطأ'], a: t[1] ? 0 : 1, e: t[2], ch: c.n, tf: 1 }; })); }
   function vQuiz() {
@@ -400,7 +413,7 @@
     }
     if (!it) {
       var pct = Math.round(Q.score / Q.items.length * 100);
-      var msg = pct >= 90 ? 'ممتاز، أنت مستعد للامتحان.' : pct >= 70 ? 'جيد جداً، راجع الأسئلة التي أخطأت فيها.' : pct >= 50 ? 'ناجح، لكن الملخص يحتاج مراجعة ثانية.' : (graded(Q) ? 'راجع ملخص الفصل جيداً، فهو أساس الامتحان النهائي.' : 'راجع ملخص الفصل ثم أعد المحاولة.');
+      var msg = pct >= 90 ? 'ممتاز، أنت مستعد للامتحان.' : pct >= 70 ? 'جيد جداً، راجع الأسئلة التي أخطأت فيها.' : pct >= 50 ? 'ناجح، لكن الملخص يحتاج مراجعة ثانية.' : (graded(Q) ? (Q.n === 0 ? 'راجع ملخصات الفصول جيداً قبل الامتحان النهائي.' : 'راجع ملخص الفصل جيداً، فهو أساس الامتحان النهائي.') : 'راجع ملخص الفصل ثم أعد المحاولة.');
       return topbar(Q.title, true) + '<main class="wrap"><div class="card score" style="margin-top:14px"><div class="big">' + pct + '%</div><p>' + Q.score + ' من ' + Q.items.length + '</p><p class="mute">' + msg + '</p>' + (graded(Q) ? '<p class="small mute">أُرسلت نتيجتك إلى الأستاذ. انتهت محاولتك الوحيدة في هذا الاختبار.</p>' : '') + '</div>' +
         (Q.wrong.length && !graded(Q) ? '<section class="block"><h3>أسئلة تحتاج مراجعة</h3>' + Q.wrong.map(function (w) { return '<div class="card" style="margin-top:8px"><p><b>' + esc(w.q) + '</b></p><p class="small" style="color:var(--good)">الإجابة: ' + esc(w.o[w.a]) + '</p><p class="small mute">' + esc(w.e) + '</p></div>'; }).join('') + '</section>' : '') +
         '<div class="row" style="margin-top:16px">' + (graded(Q) ? '' : '<button class="btn" data-a="retry">أعد الاختبار</button>') + '<button class="btn ghost" data-a="back">رجوع</button></div></main>';
@@ -414,7 +427,7 @@
     return topbar(Q.title, true) + '<main class="wrap"><div class="qwrap"><div class="qtop"><span>السؤال ' + (Q.i + 1) + ' من ' + Q.items.length + '</span><span>' + (it.tf ? 'صح أم خطأ' : 'اختيار من متعدد') + (it.ch ? ' · الفصل ' + it.ch : '') + '</span></div><div class="qbar"><i style="width:' + (Q.i / Q.items.length * 100) + '%"></i></div>' + (graded(Q) ? '<p class="small mute" style="margin:6px 0 0">محاولة واحدة · لا رجوع إلى الأسئلة السابقة</p>' : '') + '<p class="qtext">' + esc(it.q) + '</p><div class="opts">' + opts + '</div>' + fb + '</div></main>';
   }
   function vTests() {
-    return topbar('الاختبارات') + '<main class="wrap">' + (isAdmin() ? '<div class="tipbox small" style="margin-top:12px"><b>أنت داخل بحساب الأستاذ.</b> تظهر لك الأقفال كما يراها الطلبة، وتستطيع فتح أي اختبار للمعاينة. للتحكم بالأقفال افتح لوحة الأستاذ ثم «فتح الاختبارات».</div>' : '') + '<div class="tipbox small" style="margin-top:12px">اختبارات الفصول والامتحان الشامل: <b>محاولة واحدة فقط</b> لكل اختبار، وتصل الدرجة إلى الأستاذ مع اسمك. الاختبار السريع للتدريب، تعيده متى شئت ولا يُرسل.</div><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem;color:inherit">الامتحان الشامل</b><p class="small" style="opacity:.85">20 سؤال اختيار من متعدد و 10 عبارات صح أو خطأ من الفصول العشرة، على غرار الامتحان النهائي.</p>' + '' + (attempted(0) ? '<p><b style="color:inherit">أنهيت الامتحان الشامل. درجتك ' + myScore(0) + '%</b></p>' : isOpen(0) ? '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button>' : '<div class="lockbox inv">' + LOCK + '<span>مقفل حالياً، وسيفتحه الأستاذ لاحقاً.</span></div>' + (isAdmin() ? '<button class="btn amb" data-a="final">معاينة الأستاذ</button>' : '')) + '</div></section>' +
+    return topbar('الاختبارات') + '<main class="wrap">' + (isAdmin() ? '<div class="tipbox small" style="margin-top:12px"><b>أنت داخل بحساب الأستاذ.</b> تظهر لك الأقفال كما يراها الطلبة، وتستطيع فتح أي اختبار للمعاينة. للتحكم بالأقفال افتح لوحة الأستاذ ثم «فتح الاختبارات».</div>' : '') + '<div class="tipbox small" style="margin-top:12px">اختبارات الفصول والامتحان الشامل: <b>محاولة واحدة فقط</b> لكل اختبار، وتصل الدرجة إلى الأستاذ مع اسمك. الاختبار السريع للتدريب، تعيده متى شئت ولا يُرسل.</div><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem;color:inherit">الامتحان الشامل</b><p class="small" style="opacity:.85">100 سؤال شامل لكل المادة: 70 اختيار من متعدد و 30 عبارة صح أو خطأ، موزعة على الفصول العشرة، على غرار الامتحان النهائي.</p>' + '' + (attempted(0) ? '<p><b style="color:inherit">أنهيت الامتحان الشامل. درجتك ' + myScore(0) + '%</b></p>' : isOpen(0) ? '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button>' : '<div class="lockbox inv">' + LOCK + '<span>مقفل حالياً، وسيفتحه الأستاذ لاحقاً.</span></div>' + (isAdmin() ? '<button class="btn amb" data-a="final">معاينة الأستاذ</button>' : '')) + '</div></section>' +
       '<section class="block"><div class="row"><button class="btn ghost wide" data-a="quick">اختبار سريع: 10 أسئلة عشوائية' + (CH.some(function (c) { return !isOpen(c.n); }) ? ' من الفصول المفتوحة' : '') + '</button></div></section>' +
       '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = isAdmin() ? P.best[c.n] : null; return '<button class="chcard ' + c.unit + (isOpen(c.n) ? '' : ' locked') + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (attempted(c.n) ? '<span class="pill ' + pcls(myScore(c.n)) + '">أنهيته · ' + myScore(c.n) + '%</span>' : !isOpen(c.n) ? '<span class="pill lockpill">' + LOCK + 'مقفل</span>' : b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
   }
@@ -701,7 +714,7 @@
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
       case 'startq': if (!canStart(+d.ch)) break; var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;
-      case 'final': if (!canStart(0)) break; var all = []; CH.forEach(function (c) { all = all.concat(mk(c)); }); buildQuiz(shuffle(shuffle(all.filter(function (x) { return !x.tf; })).slice(0, 20).concat(shuffle(all.filter(function (x) { return x.tf; })).slice(0, 10))), 'الامتحان الشامل', 0); break;
+      case 'final': if (!canStart(0)) break; buildQuiz(finalItems(), 'الامتحان الشامل', 0); break;
       case 'quick': var al = []; CH.forEach(function (c) { if (isOpen(c.n) || isAdmin()) al = al.concat(mk(c)); }); if (!al.length) { lockedMsg(); break; } buildQuiz(shuffle(al).slice(0, 10), 'اختبار سريع', -1); break;
       case 'pick': var Q = S.quiz; if (Q.picked != null || Q.intro) return; Q.picked = +d.k; var it = Q.items[Q.i]; if (Q.picked === it.a) Q.score++; else Q.wrong.push(it); if (graded(Q)) saveGraded(Q, false); render(); break;
       case 'qbegin': var Qb = S.quiz; if (attempted(Qb.n)) { toast('أنهيت هذا الاختبار. لكل اختبار محاولة واحدة فقط'); back(); break; } Qb.intro = false; Qb.started = true; saveGraded(Qb, true); render(); window.scrollTo(0, 0); break;
