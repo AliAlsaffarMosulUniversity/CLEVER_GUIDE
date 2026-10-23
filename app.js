@@ -345,7 +345,7 @@
       body = '<div class="tblwrap" style="margin-top:14px"><table><thead><tr><th>المصطلح</th><th>معناه</th></tr></thead><tbody>' + c.terms.map(function (t) { return '<tr><td>' + esc(t[0]) + '<span class="ltr">' + esc(t[1]) + '</span></td><td>' + esc(t[2]) + '</td></tr>'; }).join('') + '</tbody></table></div><div style="margin-top:12px"><button class="btn ink wide" data-a="cardsch" data-ch="' + c.n + '">راجعها ببطاقات قلّابة</button></div>';
     } else if (S.tab === 'quiz') {
       var b = isAdmin() ? P.best[c.n] : null;
-      body = '<div class="card" style="margin-top:14px;display:grid;gap:10px"><b>اختبار الفصل ' + c.n + '</b><p class="mute small">' + c.mcq.length + ' سؤال اختيار من متعدد و ' + c.tf.length + ' عبارات صح أو خطأ، مع شرح لكل إجابة.</p>' + (b != null ? '<p class="small">أفضل نتيجة لك: <b>' + b + '%</b></p>' : '') + (attempted(c.n) ? '<div class="fb ' + (myScore(c.n) >= 50 ? 'ok' : 'no') + '"><b>أنهيت هذا الاختبار. درجتك ' + myScore(c.n) + '%</b>لكل اختبار محاولة واحدة فقط.</div>' : isOpen(c.n) ? '<button class="btn wide" data-a="startq" data-ch="' + c.n + '">ابدأ الاختبار</button>' : '<div class="lockbox">' + LOCK + '<span>هذا الاختبار مقفل حالياً، وسيفتحه الأستاذ لاحقاً. يمكنك مراجعة الملخص والمصطلحات الآن.</span></div>' + (isAdmin() ? '<button class="btn ghost wide" data-a="startq" data-ch="' + c.n + '">معاينة الأستاذ</button>' : '')) + '</div>';
+      body = '<div class="card" style="margin-top:14px;display:grid;gap:10px"><b>اختبار الفصل ' + c.n + '</b><p class="mute small">' + chCount(c.n) + ' سؤالاً: ' + Math.min(TEST_MCQ, chPool(c.n).mcq.length) + ' اختيار من متعدد و ' + Math.min(TEST_TF, chPool(c.n).tf.length) + ' صح أو خطأ. تتجدد الأسئلة أسبوعياً.</p>' + (b != null ? '<p class="small">أفضل نتيجة لك: <b>' + b + '%</b></p>' : '') + (attempted(c.n) ? '<div class="fb ' + (myScore(c.n) >= 50 ? 'ok' : 'no') + '"><b>أنهيت هذا الاختبار. درجتك ' + myScore(c.n) + '%</b>لكل اختبار محاولة واحدة فقط.</div>' : isOpen(c.n) ? '<button class="btn wide" data-a="startq" data-ch="' + c.n + '">ابدأ الاختبار</button>' : '<div class="lockbox">' + LOCK + '<span>هذا الاختبار مقفل حالياً، وسيفتحه الأستاذ لاحقاً. يمكنك مراجعة الملخص والمصطلحات الآن.</span></div>' + (isAdmin() ? '<button class="btn ghost wide" data-a="startq" data-ch="' + c.n + '">معاينة الأستاذ</button>' : '')) + '</div>';
     } else {
       body = '<div class="qa" style="margin-top:12px">' + c.qa.map(function (q) { return '<details><summary>' + esc(q[0]) + '</summary><p>' + esc(q[1]) + '</p></details>'; }).join('') + '</div><p class="small mute" style="margin-top:10px">حاول الإجابة بنفسك أولاً، ثم افتح السؤال لترى الإجابة النموذجية.</p>';
     }
@@ -399,10 +399,25 @@
     return [].concat.apply([], q.map(function (o) { return shuffle(o.g.slice()).slice(0, o.n); }));
   }
   function finalItems() {
-    var m = CH.map(function (c) { return mk(c).filter(function (x) { return !x.tf; }); }), t = CH.map(function (c) { return mk(c).filter(function (x) { return x.tf; }); });
+    var m = CH.map(function (c) { return mk(chPool(c.n)).filter(function (x) { return !x.tf; }); }), t = CH.map(function (c) { return mk(chPool(c.n)).filter(function (x) { return x.tf; }); });
     return shuffle(pickSpread(m, FINAL_MCQ).concat(pickSpread(t, FINAL_TF)));
   }
   function buildQuiz(items, title, n) { S.quiz = { title: title, n: n, items: items, i: 0, picked: null, score: 0, wrong: [], intro: n >= 0 && !isAdmin() }; go('quiz'); }
+  /* اختبار كل فصل 20 سؤالاً: 14 اختيار من متعدد و6 صح أو خطأ.
+     الأولوية لدفعة الأسبوع الجديدة (WEEKLY)، وإلا يُختار من بنك الفصل كاملاً بترتيب ثابت طوال الأسبوع */
+  var TEST_MCQ = 14, TEST_TF = 6;
+  var BANKW = (window.WEEKLY || []), BANKX = (window.EXTRA || {});
+  function weekKey() { var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); return d.toISOString().slice(0, 10); }
+  function seeded(arr, seed) { var h = 2166136261; for (var i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); } var a = arr.slice(); for (var j = a.length - 1; j > 0; j--) { h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909); var k = ((h >>> 0) % (j + 1)); var t = a[j]; a[j] = a[k]; a[k] = t; } return a; }
+  function liveBatches(n) { var t = today(); return BANKW.filter(function (b) { return b.ch === n && b.from <= t; }).sort(function (a, b) { return a.from < b.from ? 1 : -1; }); }
+  function chPool(n) { var c = CH[n - 1], x = BANKX[n] || {}, bs = liveBatches(n), m = c.mcq.concat(x.mcq || []), t = c.tf.concat(x.tf || []); bs.forEach(function (b) { m = m.concat(b.mcq); t = t.concat(b.tf); }); return { n: n, mcq: m, tf: t }; }
+  function chTest(n) {
+    var cur = liveBatches(n)[0], m, t;
+    if (cur && cur.mcq.length >= TEST_MCQ && cur.tf.length >= TEST_TF) { m = shuffle(cur.mcq.slice()).slice(0, TEST_MCQ); t = shuffle(cur.tf.slice()).slice(0, TEST_TF); }
+    else { var p = chPool(n), sd = weekKey() + '-' + n; m = seeded(p.mcq, sd).slice(0, TEST_MCQ); t = seeded(p.tf, sd).slice(0, TEST_TF); }
+    return shuffle(mk({ n: n, mcq: m, tf: t }));
+  }
+  function chCount(n) { var p = chPool(n); return Math.min(TEST_MCQ, p.mcq.length) + Math.min(TEST_TF, p.tf.length); }
   function mk(c) { return c.mcq.map(function (q) { var ord = shuffle(q[1].map(function (_, i) { return i; })); return { q: q[0], o: ord.map(function (i) { return q[1][i]; }), a: ord.indexOf(q[2]), e: q[3], ch: c.n }; }).concat(c.tf.map(function (t) { return { q: t[0], o: ['صح', 'خطأ'], a: t[1] ? 0 : 1, e: t[2], ch: c.n, tf: 1 }; })); }
   function vQuiz() {
     var Q = S.quiz, it = Q.items[Q.i];
@@ -429,7 +444,7 @@
   function vTests() {
     return topbar('الاختبارات') + '<main class="wrap">' + (isAdmin() ? '<div class="tipbox small" style="margin-top:12px"><b>أنت داخل بحساب الأستاذ.</b> تظهر لك الأقفال كما يراها الطلبة، وتستطيع فتح أي اختبار للمعاينة. للتحكم بالأقفال افتح لوحة الأستاذ ثم «فتح الاختبارات».</div>' : '') + '<div class="tipbox small" style="margin-top:12px">اختبارات الفصول والامتحان الشامل: <b>محاولة واحدة فقط</b> لكل اختبار، وتصل الدرجة إلى الأستاذ مع اسمك. الاختبار السريع للتدريب، تعيده متى شئت ولا يُرسل.</div><section class="block"><div class="card" style="display:grid;gap:10px;background:var(--ink);color:var(--bg);border-color:var(--ink)"><b style="font-family:var(--f-disp);font-size:1.2rem;color:inherit">الامتحان الشامل</b><p class="small" style="opacity:.85">100 سؤال شامل لكل المادة: 70 اختيار من متعدد و 30 عبارة صح أو خطأ، موزعة على الفصول العشرة، على غرار الامتحان النهائي.</p>' + '' + (attempted(0) ? '<p><b style="color:inherit">أنهيت الامتحان الشامل. درجتك ' + myScore(0) + '%</b></p>' : isOpen(0) ? '<button class="btn amb" data-a="final">ابدأ الامتحان الشامل</button>' : '<div class="lockbox inv">' + LOCK + '<span>مقفل حالياً، وسيفتحه الأستاذ لاحقاً.</span></div>' + (isAdmin() ? '<button class="btn amb" data-a="final">معاينة الأستاذ</button>' : '')) + '</div></section>' +
       '<section class="block"><div class="row"><button class="btn ghost wide" data-a="quick">اختبار سريع: 10 أسئلة عشوائية' + (CH.some(function (c) { return !isOpen(c.n); }) ? ' من الفصول المفتوحة' : '') + '</button></div></section>' +
-      '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = isAdmin() ? P.best[c.n] : null; return '<button class="chcard ' + c.unit + (isOpen(c.n) ? '' : ' locked') + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + (c.mcq.length + c.tf.length) + ' سؤالاً</span></span>' + (attempted(c.n) ? '<span class="pill ' + pcls(myScore(c.n)) + '">أنهيته · ' + myScore(c.n) + '%</span>' : !isOpen(c.n) ? '<span class="pill lockpill">' + LOCK + 'مقفل</span>' : b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
+      '<section class="block"><h3>اختبارات الفصول</h3><div class="chlist">' + CH.map(function (c) { var b = isAdmin() ? P.best[c.n] : null; return '<button class="chcard ' + c.unit + (isOpen(c.n) ? '' : ' locked') + '" data-a="startq" data-ch="' + c.n + '"><span class="ic"><span class="num">' + c.n + '</span>' + LI[c.icon] + '</span><span class="tx"><b>' + esc(c.title) + '</b><span>' + chCount(c.n) + ' سؤالاً</span></span>' + (attempted(c.n) ? '<span class="pill ' + pcls(myScore(c.n)) + '">أنهيته · ' + myScore(c.n) + '%</span>' : !isOpen(c.n) ? '<span class="pill lockpill">' + LOCK + 'مقفل</span>' : b != null ? '<span class="pill ' + (b >= 50 ? 'good' : 'bad') + '">' + b + '%</span>' : '<span class="pill">لم يبدأ</span>') + '</button>'; }).join('') + '</div></section></main>';
   }
 
   /* البطاقات */
@@ -714,9 +729,9 @@
       case 'theme': var nt = curTheme() === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', nt); lsSet('theme', nt); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', nt === 'dark' ? '#071D42' : '#7A1E2C'); render(); break;
       case 'open': go('chapter', { ch: +d.ch, tab: 'sum' }); break;
       case 'tab': S.tab = d.t; render(); window.scrollTo(0, 0); break;
-      case 'startq': if (!canStart(+d.ch)) break; var c = CH[+d.ch - 1]; buildQuiz(shuffle(mk(c)), 'اختبار الفصل ' + c.n, c.n); break;
+      case 'startq': if (!canStart(+d.ch)) break; var c = CH[+d.ch - 1]; buildQuiz(chTest(c.n), 'اختبار الفصل ' + c.n, c.n); break;
       case 'final': if (!canStart(0)) break; buildQuiz(finalItems(), 'الامتحان الشامل', 0); break;
-      case 'quick': var al = []; CH.forEach(function (c) { if (isOpen(c.n) || isAdmin()) al = al.concat(mk(c)); }); if (!al.length) { lockedMsg(); break; } buildQuiz(shuffle(al).slice(0, 10), 'اختبار سريع', -1); break;
+      case 'quick': var al = []; CH.forEach(function (c) { if (isOpen(c.n) || isAdmin()) al = al.concat(mk(chPool(c.n))); }); if (!al.length) { lockedMsg(); break; } buildQuiz(shuffle(al).slice(0, 10), 'اختبار سريع', -1); break;
       case 'pick': var Q = S.quiz; if (Q.picked != null || Q.intro) return; Q.picked = +d.k; var it = Q.items[Q.i]; if (Q.picked === it.a) Q.score++; else Q.wrong.push(it); if (graded(Q)) saveGraded(Q, false); render(); break;
       case 'qbegin': var Qb = S.quiz; if (attempted(Qb.n)) { toast('أنهيت هذا الاختبار. لكل اختبار محاولة واحدة فقط'); back(); break; } Qb.intro = false; Qb.started = true; saveGraded(Qb, true); render(); window.scrollTo(0, 0); break;
       case 'qcancel': back(); break;

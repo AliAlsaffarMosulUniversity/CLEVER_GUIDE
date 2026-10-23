@@ -1,8 +1,8 @@
 /* يحفظ ملفات التطبيق على الجهاز ليفتح فوراً حتى مع إنترنت ضعيف أو مقطوع.
    كل نسخة جديدة من التطبيق تُنزَّل كاملة في الخلفية، وتُستعمل من الفتح التالي.
    بيانات قاعدة البيانات لا تُحفظ هنا */
-var C = 'c2-v30';
-var FILES = ['./', 'index.html', 'app.css', 'config.js', 'data1.js', 'data2.js', 'art.js', 'app.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/college-logo.png', 'icons/college-logo-160.png', 'icons/college-mark-white.png'];
+var C = 'c2-v31';
+var FILES = ['./', 'index.html', 'app.css', 'config.js', 'data1.js', 'data2.js', 'bank.js', 'art.js', 'app.js', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/college-logo.png', 'icons/college-logo-160.png', 'icons/college-mark-white.png'];
 
 self.addEventListener('install', function (e) {
   /* cache:'reload' يتجاوز ذاكرة المتصفح المؤقتة، فتُحفظ أحدث الملفات فعلاً */
