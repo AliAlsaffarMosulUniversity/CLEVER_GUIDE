@@ -334,12 +334,13 @@
       '<div class="unit">الوحدة الثانية: الذكاء الاصطناعي</div><div class="chlist">' + u2.map(chCard).join('') + '</div></section>' + footer() + '</main>';
   }
 
+  var CHVID = { 4: 'videos/ch4' };
   function vChapter() {
     var c = CH[S.ch - 1];
     var tabs = [['sum', 'الملخص'], ['terms', 'المصطلحات'], ['quiz', 'اختبر نفسك'], ['qa', 'سؤال وجواب']];
     var body = '';
     if (S.tab === 'sum') {
-      body = '<p style="margin-top:12px">' + esc(c.intro) + '</p><ul class="goals">' + c.goals.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ul>' + c.sec.map(function (s) { return secHTML(c, s); }).join('') +
+      body = (CHVID[c.n] ? '<div class="vidbox"><b>فيديو شرح الفصل</b><video controls playsinline preload="none" poster="' + CHVID[c.n] + '.jpg" src="' + CHVID[c.n] + '.mp4"></video></div>' : '') + '<p style="margin-top:12px">' + esc(c.intro) + '</p><ul class="goals">' + c.goals.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ul>' + c.sec.map(function (s) { return secHTML(c, s); }).join('') +
         '<div style="margin-top:16px" class="row"><button class="btn wide" data-a="tab" data-t="quiz">انتقل إلى اختبار الفصل</button></div>';
     } else if (S.tab === 'terms') {
       body = '<div class="tblwrap" style="margin-top:14px"><table><thead><tr><th>المصطلح</th><th>معناه</th></tr></thead><tbody>' + c.terms.map(function (t) { return '<tr><td>' + esc(t[0]) + '<span class="ltr">' + esc(t[1]) + '</span></td><td>' + esc(t[2]) + '</td></tr>'; }).join('') + '</tbody></table></div><div style="margin-top:12px"><button class="btn ink wide" data-a="cardsch" data-ch="' + c.n + '">راجعها ببطاقات قلّابة</button></div>';
